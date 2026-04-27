@@ -52,16 +52,17 @@ export default function BottomNav() {
 
   return (
     <nav style={{
-      position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
-      width: '100%', maxWidth: 430,
-      background: 'rgba(6,6,8,0.94)',
+      position: 'fixed', bottom: 0, left: 0, right: 0,
+      background: 'rgba(6,6,8,0.96)',
       backdropFilter: 'blur(24px)',
       WebkitBackdropFilter: 'blur(24px)',
       borderTop: '0.5px solid rgba(34,197,94,0.12)',
-      display: 'flex',
-      paddingBottom: 'var(--inset-bottom)',
       zIndex: 50,
+      /* extend background into the safe area so there's no gap */
+      paddingBottom: 'env(safe-area-inset-bottom, 0px)',
     }}>
+      {/* inner wrapper caps width and centers on wide screens */}
+      <div style={{ display: 'flex', maxWidth: 430, margin: '0 auto' }}>
       {TABS.map(tab => {
         const active = pathname === tab.path ||
           (tab.path !== '/' && tab.path !== '/settings' && pathname.startsWith(tab.path.split('/active')[0]))
@@ -96,6 +97,7 @@ export default function BottomNav() {
           </button>
         )
       })}
+      </div>
     </nav>
   )
 }
