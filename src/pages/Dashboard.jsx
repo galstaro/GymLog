@@ -4,11 +4,18 @@ import { supabase } from '../lib/supabase'
 import { useAuth, signOut } from '../hooks/useAuth.jsx'
 import BottomNav from '../components/BottomNav.jsx'
 
-const DAY_PLANS = [
-  { label: 'Day A', muscle: 'Chest + Shoulders' },
-  { label: 'Day B', muscle: 'Back + Arms' },
-  { label: 'Day C', muscle: 'Legs + Core' },
-]
+function getLocalDateStr(d = new Date()) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function getMondayStr() {
+  const today = new Date()
+  const day = today.getDay() // 0=Sun
+  const diff = day === 0 ? -6 : 1 - day
+  const monday = new Date(today)
+  monday.setDate(today.getDate() + diff)
+  return getLocalDateStr(monday)
+}
 
 function fmtDur(secs) {
   if (!secs) return null
@@ -26,54 +33,199 @@ function fmtDate(dateStr) {
   return d.toLocaleDateString('en', { month: 'short', day: 'numeric' })
 }
 
+// ─── Goal Picker sheet ───────────────────────────────────────────────────────
+function GoalPicker({ current, isFirstTime, onSave, onClose }) {
+  const [selected, setSelected] = useState(current || 3)
+  const [saving, setSaving] = useState(false)
+  const { user } = useAuth()
+
+  async function save() {
+    setSaving(true)
+    await supabase.from('user_settings').upsert({ user_id: user.id, weekly_workout_goal: selected })
+    onSave(selected)
+    setSaving(false)
+  }
+
+  return (
+    <div
+      onClick={!isFirstTime ? onClose : undefined}
+      style={{ position: 'fixed', inset: 0, zIndex: 90, background: 'rgba(0,0,0,.75)', display: 'flex', alignItems: 'flex-end' }}
+    >
+      <div onClick={e => e.stopPropagation()} style={{
+        width: '100%', maxWidth: 430, margin: '0 auto',
+        background: '#111', borderRadius: '20px 20px 0 0',
+        border: '0.5px solid #2a2a2a', padding: '20px 20px 40px',
+        animation: 'fadeUp .25s ease',
+      }}>
+        {/* Handle */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
+          <div style={{ width: 36, height: 4, background: '#2a2a2a', borderRadius: 2 }} />
+        </div>
+        <div style={{ fontSize: 17, fontWeight: 700, color: '#fff', marginBottom: 6 }}>
+          {isFirstTime ? 'Set your weekly goal' : 'Weekly workout goal'}
+        </div>
+        <div style={{ fontSize: 13, color: '#555', marginBottom: 24 }}>
+          How many times do you want to train this week?
+        </div>
+        {/* 1–6 buttons */}
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginBottom: 28 }}>
+          {[1, 2, 3, 4, 5, 6].map(n => (
+            <button key={n} onClick={() => setSelected(n)} style={{
+              width: 44, height: 44, borderRadius: 12, fontSize: 16, fontWeight: 700,
+              background: selected === n ? '#0f2d18' : '#1a1a1a',
+              color: selected === n ? '#22c55e' : '#555',
+              border: selected === n ? '1.5px solid #22c55e' : '0.5px solid #2a2a2a',
+            }}>{n}</button>
+          ))}
+        </div>
+        <button onClick={save} disabled={saving} style={{
+          width: '100%', padding: 14, borderRadius: 12, fontSize: 15, fontWeight: 700,
+          background: '#22c55e', color: '#000', minHeight: 50, opacity: saving ? .7 : 1,
+        }}>
+          {saving ? 'Saving…' : 'Save goal'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ─── Weekly Goal Card ─────────────────────────────────────────────────────────
+function WeeklyGoalCard({ done, goal, weekDays, onEdit }) {
+  const pct = Math.min(Math.round((done / goal) * 100), 100)
+  const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
+  return (
+    <div style={{ margin: '0 16px 14px', background: '#111', borderRadius: 14, border: '0.5px solid #1e1e1e', padding: '14px 14px 12px' }}>
+      {/* Top row */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
+        <div>
+          <div style={{ fontSize: 11, color: '#444', textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 600, marginBottom: 6 }}>
+            This Week's Goal
+          </div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
+            <span style={{ fontSize: 28, fontWeight: 500, color: '#22c55e', lineHeight: 1 }}>{done}</span>
+            <span style={{ fontSize: 18, color: '#444', fontWeight: 400 }}> / {goal}</span>
+          </div>
+          <div style={{ fontSize: 12, color: '#555', marginTop: 3 }}>workouts done</div>
+        </div>
+        <div style={{ background: '#0f2d18', border: '0.5px solid rgba(34,197,94,.2)', borderRadius: 8, padding: '4px 10px', fontSize: 13, color: '#22c55e', fontWeight: 600 }}>
+          {pct}%
+        </div>
+      </div>
+
+      {/* 7-day dots */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 14, padding: '0 2px' }}>
+        {weekDays.map((day, i) => (
+          <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
+            <span style={{ fontSize: 9, color: '#333', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
+              {DAY_LABELS[i]}
+            </span>
+            <div style={{
+              width: 30, height: 30, borderRadius: '50%',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: day.trained ? '#22c55e' : day.isToday ? '#0f2d18' : day.isFuture ? '#141414' : '#1a1a1a',
+              border: day.trained ? 'none' : day.isToday ? '1.5px solid #22c55e' : `0.5px solid ${day.isFuture ? '#1e1e1e' : '#222'}`,
+            }}>
+              {day.trained ? (
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <path d="M2.5 7l3 3 6-6" stroke="#000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              ) : day.isToday ? (
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e' }} />
+              ) : null}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Progress bar */}
+      <div style={{ height: 4, background: '#1a1a1a', borderRadius: 4, marginBottom: 12, overflow: 'hidden' }}>
+        <div style={{ height: '100%', width: `${pct}%`, background: '#22c55e', borderRadius: 4, transition: 'width .6s ease' }} />
+      </div>
+
+      {/* Footer */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ fontSize: 12, color: '#555', flex: 1, paddingRight: 8 }}>
+          {done < goal ? (
+            <><span style={{ color: '#22c55e', fontWeight: 600 }}>{goal - done} more workout{goal - done !== 1 ? 's' : ''}</span> to hit your goal!</>
+          ) : done === goal ? (
+            <><span style={{ color: '#22c55e', fontWeight: 600 }}>Goal crushed!</span> Great week 💪</>
+          ) : (
+            <><span style={{ color: '#22c55e', fontWeight: 600 }}>{done - goal} above</span> your goal — beast mode 🔥</>
+          )}
+        </div>
+        <button onClick={onEdit} style={{ border: '0.5px solid #222', borderRadius: 6, padding: '3px 8px', fontSize: 11, color: '#333', background: 'transparent', flexShrink: 0 }}>
+          Edit goal
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ─── Dashboard ────────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [data, setData] = useState(null)
   const [showProfile, setShowProfile] = useState(false)
+  const [showGoalPicker, setShowGoalPicker] = useState(false)
+  const [isFirstTimeGoal, setIsFirstTimeGoal] = useState(false)
 
-  // Reload on every visit (location.key changes on each navigation)
   useEffect(() => { if (user) load() }, [user, location.key])
 
   async function load() {
     const today = new Date()
-    const weekAgo = new Date(today); weekAgo.setDate(weekAgo.getDate() - 6)
     const monthStart = new Date(today); monthStart.setDate(1)
+    const weekStart = getMondayStr()
 
     const [wRes, sRes] = await Promise.all([
-      supabase.from('workouts').select('id, date, duration_seconds, notes')
+      supabase.from('workouts').select('*')
         .eq('user_id', user.id).order('date', { ascending: false }).limit(20),
       supabase.from('sets').select('weight_kg, reps, workout_id')
         .eq('user_id', user.id).gte('created_at', monthStart.toISOString()),
     ])
 
+    const settingsRes = await supabase.from('user_settings')
+      .select('weekly_workout_goal').eq('user_id', user.id).maybeSingle()
+
     const workouts = wRes.data || []
     const sets = sRes.data || []
+    const goal = settingsRes.data?.weekly_workout_goal ?? null
 
     const workoutDates = new Set(workouts.map(w => w.date))
-    const last7 = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(today); d.setDate(d.getDate() - (6 - i))
-      return workoutDates.has(d.toISOString().split('T')[0])
-    })
-    let streak = 0
-    for (let i = 0; i < 365; i++) {
-      const d = new Date(today); d.setDate(d.getDate() - i)
-      if (workoutDates.has(d.toISOString().split('T')[0])) streak++
-      else if (i > 0) break
-    }
+    const todayStr = getLocalDateStr()
 
-    const weekWorkouts = workouts.filter(w => w.date >= weekAgo.toISOString().split('T')[0]).length
+    // This week's workouts
+    const workoutsThisWeek = workouts.filter(w => w.date >= weekStart).length
+
+    // Monthly volume
     const monthVolume = Math.round(sets.reduce((sum, s) => sum + s.weight_kg * s.reps, 0))
 
+    // 7-day dots (Mon–Sun)
+    const monday = new Date(today)
+    const day = today.getDay()
+    monday.setDate(today.getDate() + (day === 0 ? -6 : 1 - day))
+    const weekDays = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(monday); d.setDate(monday.getDate() + i)
+      const dateStr = getLocalDateStr(d)
+      return { trained: workoutDates.has(dateStr), isToday: dateStr === todayStr, isFuture: dateStr > todayStr }
+    })
+
+    // Recent workouts enriched
     const recentWorkouts = await Promise.all(workouts.slice(0, 5).map(async (w) => {
       const { data: wSets } = await supabase.from('sets')
-        .select('exercise_id, weight_kg, reps, exercises(name)').eq('workout_id', w.id)
-      const exerciseCount = new Set(wSets?.map(s => s.exercise_id)).size
+        .select('exercise_id, weight_kg, reps').eq('workout_id', w.id)
+      const exerciseIds = [...new Set(wSets?.map(s => s.exercise_id) || [])]
+      const exerciseCount = exerciseIds.length
       const volume = wSets?.reduce((sum, s) => sum + s.weight_kg * s.reps, 0) || 0
-      // Auto-title from exercise names
-      const names = [...new Set(wSets?.map(s => s.exercises?.name).filter(Boolean))]
-      const title = w.notes || (names.length > 0 ? names.slice(0, 2).join(' + ') : `${exerciseCount} exercises`)
+      let title = w.notes
+      if (!title && exerciseIds.length > 0) {
+        const { data: exData } = await supabase.from('exercises').select('name').in('id', exerciseIds.slice(0, 2))
+        title = exData?.map(e => e.name).join(' + ') || `${exerciseCount} exercises`
+      } else if (!title) {
+        title = 'Workout'
+      }
       return { ...w, exerciseCount, volume, title }
     }))
 
@@ -82,14 +234,23 @@ export default function Dashboard() {
       let badge = null
       if (prev && prev.volume > 0 && w.volume > 0) {
         const pct = ((w.volume - prev.volume) / prev.volume * 100)
-        badge = Math.abs(pct) < 0.5
-          ? { type: 'same' }
-          : { type: pct > 0 ? 'up' : 'down', pct: Math.abs(pct).toFixed(1) }
+        badge = Math.abs(pct) < 0.5 ? { type: 'same' } : { type: pct > 0 ? 'up' : 'down', pct: Math.abs(pct).toFixed(1) }
       }
       return { ...w, badge }
     })
 
-    setData({ streak, last7, weekWorkouts, monthVolume, recentWorkouts: enriched, nextDay: DAY_PLANS[workouts.length % 3] })
+    setData({ goal: goal ?? 3, workoutsThisWeek, weekDays, monthVolume, recentWorkouts: enriched })
+
+    if (goal === null) {
+      setIsFirstTimeGoal(true)
+      setShowGoalPicker(true)
+    }
+  }
+
+  function handleGoalSave(newGoal) {
+    setShowGoalPicker(false)
+    setIsFirstTimeGoal(false)
+    setData(d => d ? { ...d, goal: newGoal } : d)
   }
 
   if (!data) return (
@@ -110,11 +271,7 @@ export default function Dashboard() {
           <div style={{ fontSize: 13, color: '#555', marginTop: 2 }}>Hey, {name}</div>
         </div>
         <div style={{ position: 'relative', marginTop: 4 }}>
-          <button onClick={() => setShowProfile(p => !p)} style={{
-            width: 38, height: 38, borderRadius: '50%',
-            background: '#181818', border: '1px solid #2a2a2a',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
+          <button onClick={() => setShowProfile(p => !p)} style={{ width: 38, height: 38, borderRadius: '50%', background: '#181818', border: '1px solid #2a2a2a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <svg width="17" height="17" viewBox="0 0 16 16" fill="none">
               <circle cx="8" cy="5.5" r="2.5" stroke="#666" strokeWidth="1.5" />
               <path d="M2.5 13.5c0-3 2.5-5 5.5-5s5.5 2 5.5 5" stroke="#666" strokeWidth="1.5" strokeLinecap="round" />
@@ -124,53 +281,31 @@ export default function Dashboard() {
             <>
               <div onClick={() => setShowProfile(false)} style={{ position: 'fixed', inset: 0, zIndex: 98 }} />
               <div style={{ position: 'absolute', top: 46, right: 0, zIndex: 99, background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: 14, padding: 5, minWidth: 150 }}>
-                <button onClick={() => { setShowProfile(false); navigate('/settings') }} style={{ width: '100%', padding: '11px 14px', borderRadius: 10, textAlign: 'left', fontSize: 14, color: '#bbb', fontWeight: 500 }}>
-                  Settings
-                </button>
-                <button onClick={async () => { setShowProfile(false); await signOut() }} style={{ width: '100%', padding: '11px 14px', borderRadius: 10, textAlign: 'left', fontSize: 14, color: '#ff4444', fontWeight: 500 }}>
-                  Sign Out
-                </button>
+                <button onClick={() => { setShowProfile(false); navigate('/settings') }} style={{ width: '100%', padding: '11px 14px', borderRadius: 10, textAlign: 'left', fontSize: 14, color: '#bbb', fontWeight: 500 }}>Settings</button>
+                <button onClick={async () => { setShowProfile(false); await signOut() }} style={{ width: '100%', padding: '11px 14px', borderRadius: 10, textAlign: 'left', fontSize: 14, color: '#ff4444', fontWeight: 500 }}>Sign Out</button>
               </div>
             </>
           )}
         </div>
       </div>
 
-      {/* Streak bar */}
-      <div style={{
-        margin: '0 16px 14px',
-        background: 'linear-gradient(135deg, #0d1f10 0%, #111 100%)',
-        border: '1px solid rgba(34,197,94,.18)',
-        borderRadius: 16, padding: '14px 16px',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: 28 }}>🔥</span>
-          <div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: '#22c55e', letterSpacing: -0.5 }}>
-              {data.streak}-day streak
-            </div>
-            <div style={{ fontSize: 12, color: '#555', marginTop: 1 }}>Keep it going</div>
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
-          {data.last7.map((active, i) => (
-            <div key={i} style={{ width: 7, height: 7, borderRadius: '50%', background: active ? '#22c55e' : '#2a2a2a', boxShadow: active ? '0 0 6px rgba(34,197,94,.5)' : 'none' }} />
-          ))}
-        </div>
-      </div>
+      {/* Weekly Goal Card */}
+      <WeeklyGoalCard
+        done={data.workoutsThisWeek}
+        goal={data.goal}
+        weekDays={data.weekDays}
+        onEdit={() => { setIsFirstTimeGoal(false); setShowGoalPicker(true) }}
+      />
 
       {/* Start Workout */}
       <div style={{ margin: '0 16px 16px' }}>
         <button onClick={() => navigate('/workout/active')} style={{
           width: '100%', background: '#22c55e', borderRadius: 16, padding: '16px 0',
-          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+          fontSize: 17, fontWeight: 800, color: '#000', minHeight: 54,
           boxShadow: '0 0 28px rgba(34,197,94,.3), 0 4px 16px rgba(0,0,0,.4)',
+          letterSpacing: -0.2,
         }}>
-          <span style={{ fontSize: 17, fontWeight: 800, color: '#000', letterSpacing: -0.2 }}>Start Workout</span>
-          <span style={{ fontSize: 12, color: 'rgba(0,0,0,.45)', fontWeight: 600 }}>
-            {data.nextDay.label} · {data.nextDay.muscle}
-          </span>
+          Start Workout
         </button>
       </div>
 
@@ -180,10 +315,10 @@ export default function Dashboard() {
       {/* Stats row */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, margin: '0 16px 22px' }}>
         {[
-          { value: data.weekWorkouts, label: 'Workouts this week' },
+          { value: data.workoutsThisWeek, label: 'Workouts this week' },
           { value: data.monthVolume.toLocaleString(), label: 'kg lifted this month' },
         ].map(stat => (
-          <div key={stat.label} style={{ background: '#131313', borderRadius: 16, border: '1px solid #1e1e1e', padding: '16px 16px' }}>
+          <div key={stat.label} style={{ background: '#131313', borderRadius: 16, border: '1px solid #1e1e1e', padding: '16px' }}>
             <div style={{ fontSize: 36, fontWeight: 800, color: '#fff', letterSpacing: -1.5, lineHeight: 1 }}>{stat.value}</div>
             <div style={{ fontSize: 12, color: '#555', marginTop: 6, fontWeight: 500 }}>{stat.label}</div>
           </div>
@@ -199,10 +334,11 @@ export default function Dashboard() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, margin: '0 16px' }}>
             {data.recentWorkouts.map(w => (
               <button key={w.id} onClick={() => navigate(`/workout/${w.id}`)} style={{
-                background: '#131313', borderRadius: 16, border: '1px solid #1e1e1e',
+                background: '#131313', borderRadius: 16,
+                border: '1px solid #1e1e1e',
+                borderLeft: w.badge?.type === 'up' ? '3px solid #22c55e' : '3px solid #1e1e1e',
                 padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 textAlign: 'left', width: '100%', minHeight: 64,
-                borderLeft: w.badge?.type === 'up' ? '3px solid #22c55e' : '3px solid #1e1e1e',
               }}>
                 <div>
                   <div style={{ fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 4 }}>{w.title}</div>
@@ -228,13 +364,23 @@ export default function Dashboard() {
 
       {data.recentWorkouts.length === 0 && (
         <div style={{ textAlign: 'center', padding: '48px 20px' }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>💪</div>
+          <div style={{ fontSize: 42, marginBottom: 12 }}>💪</div>
           <div style={{ fontSize: 16, fontWeight: 700, color: '#fff', marginBottom: 6 }}>No workouts yet</div>
           <div style={{ fontSize: 13, color: '#444' }}>Hit Start Workout to begin</div>
         </div>
       )}
 
       <BottomNav />
+
+      {/* Goal picker sheet */}
+      {showGoalPicker && (
+        <GoalPicker
+          current={data.goal}
+          isFirstTime={isFirstTimeGoal}
+          onSave={handleGoalSave}
+          onClose={() => !isFirstTimeGoal && setShowGoalPicker(false)}
+        />
+      )}
     </div>
   )
 }

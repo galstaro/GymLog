@@ -1,84 +1,104 @@
-function fmt(mins) {
-  if (mins < 60) return `${mins}m`
-  return `${Math.floor(mins / 60)}h ${mins % 60}m`
+import { useLocation, useNavigate } from 'react-router-dom'
+
+function fmt(s) {
+  if (!s) return '0:00'
+  return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
 }
 
-export default function WorkoutSummary({ result, onDone }) {
-  const { exercises, durationMins } = result
-  const totalSets = exercises.reduce((s, ex) => s + ex.sets.length, 0)
-  const totalVolume = exercises.reduce((s, ex) => s + ex.sets.reduce((ss, set) => ss + set.weight_kg * set.reps, 0), 0)
+const MSGS = [
+  'Crushed it! 💪', 'Beast mode activated 🔥', 'Every rep counts 🏅',
+  "That's how it's done! ⚡", 'Progress never stops 🚀',
+]
+
+export default function WorkoutSummary() {
+  const { state } = useLocation()
+  const navigate = useNavigate()
+
+  if (!state) { navigate('/'); return null }
+
+  const { workoutId, duration, exerciseSummary = [] } = state
+  const done = exerciseSummary.filter(e => e.doneSets > 0)
+  const totalSets = done.reduce((s, e) => s + e.doneSets, 0)
+  const totalVolume = Math.round(done.reduce((s, e) => s + e.volume, 0))
+  const msg = MSGS[Math.floor(Math.random() * MSGS.length)]
 
   return (
-    <div style={{ height: '100vh', background: 'var(--bg)', overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
-      {/* BG decoration */}
+    <div style={{ flex: 1, background: '#0a0a0a', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0 20px 52px', overflowY: 'auto' }}>
+
+      {/* Radial glow bg */}
       <div style={{
-        position: 'fixed', top: 0, left: '50%', transform: 'translateX(-50%)',
-        width: 300, height: 300, borderRadius: '50%', pointerEvents: 'none',
-        background: 'radial-gradient(circle, rgba(0,255,136,.08) 0%, transparent 70%)',
+        position: 'fixed', top: '12%', left: '50%', transform: 'translateX(-50%)',
+        width: 360, height: 360, borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(34,197,94,.2) 0%, transparent 65%)',
+        pointerEvents: 'none', animation: 'glowPulse 2.5s ease-in-out infinite',
       }} />
 
-      <div className="fade-up" style={{ padding: '60px 20px 40px', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
-        {/* Trophy */}
-        <div style={{
-          width: 88, height: 88, borderRadius: 28, marginBottom: 20,
-          background: 'linear-gradient(135deg, rgba(0,255,136,.15), rgba(0,229,255,.1))',
-          border: '1.5px solid rgba(0,255,136,.3)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 44,
-          boxShadow: '0 0 40px rgba(0,255,136,.2)',
-        }}>🏆</div>
+      {/* Trophy */}
+      <div style={{ fontSize: 92, marginTop: 60, marginBottom: 18, animation: 'popIn .65s cubic-bezier(.34,1.56,.64,1) forwards', position: 'relative', zIndex: 1 }}>
+        🏆
+      </div>
 
-        <h1 className="grad" style={{ fontSize: 32, fontWeight: 900, letterSpacing: -1 }}>Workout Done!</h1>
-        <p style={{ color: 'var(--muted)', fontSize: 14, marginTop: 6 }}>You crushed it 🔥</p>
+      {/* Title */}
+      <div style={{ fontSize: 32, fontWeight: 800, color: '#fff', letterSpacing: -1, textAlign: 'center', marginBottom: 8, animation: 'fadeUp .5s ease .15s both', position: 'relative', zIndex: 1 }}>
+        Workout Complete!
+      </div>
+      <div style={{ fontSize: 15, color: '#555', marginBottom: 36, fontWeight: 500, animation: 'fadeUp .5s ease .25s both' }}>
+        {msg}
+      </div>
 
-        {/* Stats grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 28, width: '100%', maxWidth: 360 }}>
-          {[
-            { label: 'Duration', value: fmt(durationMins), icon: '⏱' },
-            { label: 'Exercises', value: exercises.length, icon: '💪' },
-            { label: 'Total Sets', value: totalSets, icon: '🎯' },
-            { label: 'Volume', value: totalVolume > 0 ? `${totalVolume.toLocaleString()}kg` : '—', icon: '📊' },
-          ].map(({ label, value, icon }) => (
-            <div key={label} style={{
-              background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 16,
-              padding: '16px 14px', textAlign: 'center',
-              borderTop: '2px solid rgba(0,255,136,.2)',
-            }}>
-              <p style={{ fontSize: 20, marginBottom: 4 }}>{icon}</p>
-              <p className="grad" style={{ fontSize: 22, fontWeight: 900 }}>{value}</p>
-              <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2, letterSpacing: '.04em' }}>{label}</p>
-            </div>
-          ))}
-        </div>
+      {/* Stats grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, width: '100%', maxWidth: 360, marginBottom: 18, animation: 'fadeUp .5s ease .35s both' }}>
+        {[
+          { label: 'Duration', value: fmt(duration) },
+          { label: 'Exercises', value: done.length },
+          { label: 'Sets Done', value: totalSets },
+          { label: 'Volume', value: `${totalVolume.toLocaleString()} kg` },
+        ].map(s => (
+          <div key={s.label} style={{ background: '#131313', borderRadius: 16, border: '1px solid #1e1e1e', padding: '18px 16px', textAlign: 'center' }}>
+            <div style={{ fontSize: 28, fontWeight: 800, color: '#22c55e', letterSpacing: -1, lineHeight: 1 }}>{s.value}</div>
+            <div style={{ fontSize: 11, color: '#444', marginTop: 6, textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
 
-        {/* Exercise list */}
-        <div style={{ width: '100%', maxWidth: 360, marginTop: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {exercises.map(ex => (
-            <div key={ex.exercise.id} style={{
+      {/* Exercise breakdown */}
+      {done.length > 0 && (
+        <div style={{ width: '100%', maxWidth: 360, marginBottom: 30, borderRadius: 14, overflow: 'hidden', border: '1px solid #1a1a1a', animation: 'fadeUp .5s ease .45s both' }}>
+          {done.map((e, i) => (
+            <div key={i} style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              background: 'var(--bg2)', border: '1px solid var(--border)',
-              borderRadius: 14, padding: '13px 16px',
-              borderLeft: '3px solid rgba(0,255,136,.35)',
+              padding: '13px 16px', background: '#111',
+              borderTop: i > 0 ? '1px solid #1a1a1a' : 'none',
             }}>
-              <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{ex.exercise.name}</span>
-              <span style={{
-                fontSize: 12, fontWeight: 700, color: 'var(--neon)', opacity: .7,
-                background: 'rgba(0,255,136,.08)', padding: '3px 10px', borderRadius: 8,
-              }}>{ex.sets.length} sets</span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: '#ddd' }}>{e.name}</span>
+              <div>
+                <span style={{ fontSize: 13, color: '#555', fontWeight: 500 }}>{e.doneSets} set{e.doneSets !== 1 ? 's' : ''}</span>
+                {e.maxWeight > 0 && (
+                  <span style={{ fontSize: 13, color: '#22c55e', fontWeight: 600, marginLeft: 8 }}>{e.maxWeight} kg</span>
+                )}
+              </div>
             </div>
           ))}
         </div>
+      )}
 
-        <button
-          onClick={onDone}
-          className="glow"
-          style={{
-            marginTop: 28, width: '100%', maxWidth: 360, padding: '17px 0', borderRadius: 16,
-            fontWeight: 900, fontSize: 16, letterSpacing: '.08em', textTransform: 'uppercase',
-            background: 'linear-gradient(120deg, #00ff88, #00e5ff)', color: '#000',
-          }}
-        >
-          Back to Dashboard
+      {/* CTA buttons */}
+      <div style={{ width: '100%', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 10, animation: 'fadeUp .5s ease .55s both' }}>
+        <button onClick={() => navigate('/')} style={{
+          width: '100%', padding: 17, borderRadius: 16, fontSize: 16, fontWeight: 800,
+          background: '#22c55e', color: '#000', minHeight: 58,
+          boxShadow: '0 0 30px rgba(34,197,94,.4), 0 4px 20px rgba(0,0,0,.5)',
+        }}>
+          Back to Home
         </button>
+        {workoutId && (
+          <button onClick={() => navigate(`/workout/${workoutId}`)} style={{
+            width: '100%', padding: 14, borderRadius: 16, fontSize: 14, fontWeight: 600,
+            background: 'transparent', color: '#444', border: '1px solid #1e1e1e', minHeight: 50,
+          }}>
+            View Details
+          </button>
+        )}
       </div>
     </div>
   )

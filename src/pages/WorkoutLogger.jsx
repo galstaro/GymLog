@@ -98,19 +98,29 @@ export default function WorkoutLogger() {
     return () => clearTimeout(id)
   }, [rest])
 
+  function getLocalDateStr() {
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  }
+
   async function getOrCreateWorkout() {
     if (workoutIdRef.current) return workoutIdRef.current
     if (creatingRef.current) return creatingRef.current
-    creatingRef.current = (async () => {
-      const { data } = await supabase.from('workouts').insert({
-        user_id: user.id,
-        date: new Date().toISOString().split('T')[0],
-      }).select('id').single()
-      workoutIdRef.current = data.id
-      creatingRef.current = null
-      return data.id
+    const p = (async () => {
+      try {
+        const { data, error } = await supabase.from('workouts').insert({
+          user_id: user.id,
+          date: getLocalDateStr(),
+        }).select('id').single()
+        if (error || !data) throw new Error(error?.message || 'insert failed')
+        workoutIdRef.current = data.id
+        return data.id
+      } finally {
+        creatingRef.current = null
+      }
     })()
-    return creatingRef.current
+    creatingRef.current = p
+    return p
   }
 
   async function addExercise(exercise) {
@@ -185,7 +195,7 @@ export default function WorkoutLogger() {
     setBlocks(prev => prev.map((b, i) => i !== bi ? b : {
       ...b, sets: b.sets.map((s, j) => {
         if (j !== si || s.done) return s
-        if (field === 'weight') return { ...s, weight: adj(s.weight, delta, 2.5) }
+        if (field === 'weight') return { ...s, weight: adj(s.weight, delta, 1) }
         return { ...s, reps: Math.max(0, Math.round(s.reps + delta)) }
       })
     }))
@@ -198,10 +208,25 @@ export default function WorkoutLogger() {
   async function finish() {
     if (blocks.length === 0) { navigate('/'); return }
     setFinishing(true)
-    const duration = Math.floor((Date.now() - startRef.current) / 1000)
-    const wid = await getOrCreateWorkout()
-    await supabase.from('workouts').update({ duration_seconds: duration }).eq('id', wid)
-    navigate(`/workout/${wid}`)
+    try {
+      const duration = Math.floor((Date.now() - startRef.current) / 1000)
+      const wid = await getOrCreateWorkout()
+      const { error } = await supabase.from('workouts').update({ duration_seconds: duration }).eq('id', wid)
+      if (error) console.error('duration update failed:', error)
+      const exerciseSummary = blocks.map(b => {
+        const doneSets = b.sets.filter(s => s.done)
+        return {
+          name: b.exercise.name,
+          doneSets: doneSets.length,
+          maxWeight: doneSets.length > 0 ? Math.max(...doneSets.map(s => parseFloat(s.weight) || 0)) : 0,
+          volume: doneSets.reduce((sum, s) => sum + (parseFloat(s.weight) || 0) * (parseInt(s.reps) || 0), 0),
+        }
+      })
+      navigate('/workout/complete', { state: { workoutId: wid, duration, exerciseSummary } })
+    } catch (e) {
+      console.error('finish failed:', e)
+      setFinishing(false)
+    }
   }
 
   async function discard() {
@@ -306,8 +331,8 @@ export default function WorkoutLogger() {
                     ) : (
                       <Stepper
                         value={set.weight || 0}
-                        onDec={() => adjustSet(bi, si, 'weight', -2.5)}
-                        onInc={() => adjustSet(bi, si, 'weight', 2.5)}
+                        onDec={() => adjustSet(bi, si, 'weight', -1)}
+                        onInc={() => adjustSet(bi, si, 'weight', 1)}
                         color="#ddd"
                       />
                     )}

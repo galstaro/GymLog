@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth.jsx'
+import BottomNav from '../components/BottomNav.jsx'
 
 function fmtDuration(secs) {
   if (!secs) return null
@@ -16,6 +17,8 @@ export default function WorkoutDetail() {
   const [workout, setWorkout] = useState(null)
   const [blocks, setBlocks] = useState([])
   const [loading, setLoading] = useState(true)
+  const [deleteConfirm, setDeleteConfirm] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => { if (user) load() }, [user, id])
 
@@ -38,6 +41,13 @@ export default function WorkoutDetail() {
     setLoading(false)
   }
 
+  async function deleteWorkout() {
+    setDeleting(true)
+    await supabase.from('sets').delete().eq('workout_id', id)
+    await supabase.from('workouts').delete().eq('id', id)
+    navigate('/')
+  }
+
   if (loading) return (
     <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
       <div style={{ width: 24, height: 24, border: '2px solid #1e1e1e', borderTopColor: '#22c55e', borderRadius: '50%', animation: 'spin .7s linear infinite' }} />
@@ -51,18 +61,23 @@ export default function WorkoutDetail() {
   const totalVolume = blocks.flatMap(b => b.sets).reduce((sum, s) => sum + s.weight_kg * s.reps, 0)
 
   return (
-    <div style={{ flex: 1, paddingBottom: 40 }}>
+    <div style={{ flex: 1, paddingBottom: 90 }}>
       {/* Top bar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '16px 16px 12px' }}>
-        <button onClick={() => navigate('/')} style={{ width: 36, height: 36, borderRadius: '50%', background: '#1a1a1a', border: '1px solid #1e1e1e', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path d="M10 3L5 8l5 5" stroke="#999" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </button>
-        <div>
-          <div style={{ fontSize: 17, fontWeight: 500, color: '#fff' }}>Workout</div>
-          <div style={{ fontSize: 12, color: '#555', marginTop: 1 }}>{dateStr}</div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 16px 12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button onClick={() => navigate(-1)} style={{ width: 36, height: 36, borderRadius: '50%', background: '#1a1a1a', border: '1px solid #1e1e1e', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M10 3L5 8l5 5" stroke="#999" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+          <div>
+            <div style={{ fontSize: 17, fontWeight: 500, color: '#fff' }}>Workout</div>
+            <div style={{ fontSize: 12, color: '#555', marginTop: 1 }}>{dateStr}</div>
+          </div>
         </div>
+        <button onClick={() => setDeleteConfirm(true)} style={{ padding: '8px 14px', borderRadius: 10, fontSize: 13, fontWeight: 600, color: '#ff4444', border: '1px solid rgba(255,68,68,.2)', background: 'rgba(255,68,68,.08)', minHeight: 36 }}>
+          Delete
+        </button>
       </div>
 
       {/* Summary stats */}
@@ -115,6 +130,26 @@ export default function WorkoutDetail() {
           </div>
         ))}
       </div>
+
+      {/* Delete confirmation sheet */}
+      {deleteConfirm && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(0,0,0,.8)', display: 'flex', alignItems: 'flex-end' }}>
+          <div style={{ width: '100%', maxWidth: 430, margin: '0 auto', background: '#141414', borderRadius: '20px 20px 0 0', padding: '28px 20px 48px' }}>
+            <div style={{ fontSize: 18, fontWeight: 800, color: '#fff', marginBottom: 8 }}>Delete workout?</div>
+            <div style={{ fontSize: 14, color: '#555', marginBottom: 24 }}>This will permanently delete the workout and all its sets.</div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setDeleteConfirm(false)} disabled={deleting} style={{ flex: 1, padding: 15, borderRadius: 14, fontSize: 15, fontWeight: 600, background: '#1e1e1e', color: '#888', border: '1px solid #2a2a2a', minHeight: 52 }}>
+                Cancel
+              </button>
+              <button onClick={deleteWorkout} disabled={deleting} style={{ flex: 1, padding: 15, borderRadius: 14, fontSize: 15, fontWeight: 700, background: 'rgba(255,68,68,.12)', color: '#ff4444', border: '1px solid rgba(255,68,68,.2)', minHeight: 52, opacity: deleting ? 0.6 : 1 }}>
+                {deleting ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <BottomNav />
     </div>
   )
 }
