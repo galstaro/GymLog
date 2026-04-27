@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 
-const MUSCLE_GROUPS = ['chest','back','legs','shoulders','arms','core']
+const MUSCLE_GROUPS = ['chest', 'back', 'legs', 'shoulders', 'arms', 'core']
 
 export default function ExercisePicker({ user, onSelect, onClose, existingIds = [] }) {
   const [exercises, setExercises] = useState([])
@@ -16,7 +16,7 @@ export default function ExercisePicker({ user, onSelect, onClose, existingIds = 
   const newNameRef = useRef(null)
 
   useEffect(() => {
-    loadExercises()
+    load()
     setTimeout(() => inputRef.current?.focus(), 100)
   }, [])
 
@@ -24,23 +24,11 @@ export default function ExercisePicker({ user, onSelect, onClose, existingIds = 
     if (creating) setTimeout(() => newNameRef.current?.focus(), 100)
   }, [creating])
 
-  async function saveNewExercise() {
-    if (!newName.trim()) return
-    setSaving(true)
-    const { data } = await supabase.from('exercises')
-      .insert({ user_id: user.id, name: newName.trim(), muscle_group: newGroup })
-      .select().single()
-    if (data) {
-      setExercises(prev => [...prev, data].sort((a,b) => a.name.localeCompare(b.name)))
-      onSelect(data)
-    }
-    setSaving(false)
-  }
-
-  async function loadExercises() {
+  async function load() {
     const [exRes, recentRes] = await Promise.all([
       supabase.from('exercises').select('*').eq('user_id', user.id).order('name'),
-      supabase.from('sets').select('exercise_id, created_at').eq('user_id', user.id).order('created_at', { ascending: false }).limit(50),
+      supabase.from('sets').select('exercise_id, created_at').eq('user_id', user.id)
+        .order('created_at', { ascending: false }).limit(50),
     ])
     setExercises(exRes.data || [])
     const seen = new Set(); const recents = []
@@ -49,6 +37,16 @@ export default function ExercisePicker({ user, onSelect, onClose, existingIds = 
     }
     setRecentIds(recents.slice(0, 6))
     setLoading(false)
+  }
+
+  async function saveNew() {
+    if (!newName.trim()) return
+    setSaving(true)
+    const { data } = await supabase.from('exercises')
+      .insert({ user_id: user.id, name: newName.trim(), muscle_group: newGroup })
+      .select().single()
+    if (data) { setExercises(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name))); onSelect(data) }
+    setSaving(false)
   }
 
   const filtered = exercises.filter(e =>
@@ -61,111 +59,87 @@ export default function ExercisePicker({ user, onSelect, onClose, existingIds = 
   const others = filtered.filter(e => !recentSet.has(e.id))
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 50,
-      background: 'rgba(0,0,0,.7)', backdropFilter: 'blur(8px)',
-      display: 'flex', flexDirection: 'column',
-    }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 70, background: 'rgba(0,0,0,.75)', display: 'flex', flexDirection: 'column' }}>
       <div onClick={onClose} style={{ flex: '0 0 60px' }} />
-      <div style={{
-        flex: 1, display: 'flex', flexDirection: 'column',
-        background: 'var(--bg2)', borderRadius: '24px 24px 0 0',
-        border: '1px solid rgba(0,255,136,.15)', borderBottom: 'none',
-        boxShadow: '0 -20px 60px rgba(0,255,136,.06)',
-        overflow: 'hidden',
-      }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#111', borderRadius: '16px 16px 0 0', border: '1px solid #1e1e1e', borderBottom: 'none', overflow: 'hidden' }}>
         {/* Handle */}
         <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 4px' }}>
-          <div style={{ width: 36, height: 4, borderRadius: 99, background: 'var(--border)' }} />
+          <div style={{ width: 32, height: 3, borderRadius: 99, background: '#2a2a2a' }} />
         </div>
 
-        {/* Search bar */}
-        <div style={{ padding: '8px 16px 12px', display: 'flex', gap: 10, alignItems: 'center' }}>
-          <div style={{
-            flex: 1, display: 'flex', alignItems: 'center', gap: 10,
-            background: 'var(--bg)', borderRadius: 14,
-            border: '1px solid rgba(0,255,136,.15)',
-            padding: '10px 14px',
-          }}>
-            <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-              <circle cx="6.5" cy="6.5" r="5" stroke="var(--muted)" strokeWidth="1.5"/>
-              <path d="M10 10L14 14" stroke="var(--muted)" strokeWidth="1.5" strokeLinecap="round"/>
+        {/* Search */}
+        <div style={{ padding: '8px 16px 10px', display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, background: '#0a0a0a', borderRadius: 10, border: '1px solid #1e1e1e', padding: '10px 12px' }}>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+              <circle cx="6.5" cy="6.5" r="5" stroke="#444" strokeWidth="1.5" />
+              <path d="M10 10L14 14" stroke="#444" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
             <input
               ref={inputRef}
-              type="text"
-              value={query}
-              onChange={e => setQuery(e.target.value)}
+              type="text" value={query} onChange={e => setQuery(e.target.value)}
               placeholder="Search exercises…"
-              style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontSize: 15, color: 'var(--text)' }}
+              style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontSize: 14, color: '#fff' }}
             />
           </div>
-          <button onClick={onClose} style={{
-            padding: '10px 14px', borderRadius: 12, fontSize: 13, fontWeight: 700,
-            background: 'var(--bg3)', color: 'var(--muted)', border: '1px solid var(--border)',
-          }}>
+          <button onClick={onClose} style={{ padding: '10px 12px', borderRadius: 10, fontSize: 13, fontWeight: 500, background: '#1a1a1a', color: '#555', border: '1px solid #1e1e1e' }}>
             Cancel
           </button>
         </div>
 
-        {/* List or Create form */}
+        {/* Content */}
         <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
           {creating ? (
             <div style={{ padding: '8px 16px 32px' }}>
-              <p style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--neon)', opacity: .7, marginBottom: 14 }}>New Exercise</p>
-
+              <p style={{ fontSize: 11, fontWeight: 500, letterSpacing: '.07em', textTransform: 'uppercase', color: '#22c55e', marginBottom: 14 }}>New Exercise</p>
               <input
                 ref={newNameRef}
-                value={newName}
-                onChange={e => setNewName(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && saveNewExercise()}
+                value={newName} onChange={e => setNewName(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && saveNew()}
                 placeholder="Exercise name…"
-                style={{ width: '100%', padding: '13px 14px', borderRadius: 12, fontSize: 15, background: 'var(--bg)', border: '1px solid rgba(0,255,136,.25)', color: 'var(--text)', outline: 'none', marginBottom: 16 }}
+                style={{ width: '100%', padding: '12px 14px', borderRadius: 10, fontSize: 14, background: '#0a0a0a', border: '1px solid #1e1e1e', color: '#fff', outline: 'none', marginBottom: 16 }}
               />
-
-              <p style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 10 }}>Muscle Group</p>
+              <p style={{ fontSize: 11, color: '#444', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 10 }}>Muscle Group</p>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginBottom: 24 }}>
                 {MUSCLE_GROUPS.map(g => (
                   <button key={g} onClick={() => setNewGroup(g)} style={{
-                    padding: '10px 0', borderRadius: 10, fontSize: 13, fontWeight: 700, textTransform: 'capitalize',
-                    background: newGroup === g ? 'rgba(0,255,136,.12)' : 'var(--bg)',
-                    color: newGroup === g ? 'var(--neon)' : 'var(--muted)',
-                    border: newGroup === g ? '1.5px solid rgba(0,255,136,.35)' : '1px solid var(--border)',
+                    padding: '10px 0', borderRadius: 10, fontSize: 13, fontWeight: 500, textTransform: 'capitalize',
+                    background: newGroup === g ? 'rgba(34,197,94,.1)' : '#0a0a0a',
+                    color: newGroup === g ? '#22c55e' : '#555',
+                    border: newGroup === g ? '1px solid rgba(34,197,94,.3)' : '1px solid #1e1e1e',
                   }}>{g}</button>
                 ))}
               </div>
-
-              <div style={{ display: 'flex', gap: 10 }}>
-                <button onClick={() => { setCreating(false); setNewName('') }} style={{ flex: 1, padding: '13px 0', borderRadius: 12, fontWeight: 700, fontSize: 14, background: 'var(--bg3)', color: 'var(--muted)', border: '1px solid var(--border)' }}>Back</button>
-                <button onClick={saveNewExercise} disabled={!newName.trim() || saving} style={{
-                  flex: 2, padding: '13px 0', borderRadius: 12, fontWeight: 800, fontSize: 14,
-                  background: newName.trim() ? 'linear-gradient(120deg,#00ff88,#00e5ff)' : 'var(--bg3)',
-                  color: newName.trim() ? '#000' : 'var(--muted)',
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={() => { setCreating(false); setNewName('') }} style={{ flex: 1, padding: 13, borderRadius: 10, fontWeight: 500, fontSize: 14, background: '#1a1a1a', color: '#555', border: '1px solid #1e1e1e' }}>
+                  Back
+                </button>
+                <button onClick={saveNew} disabled={!newName.trim() || saving} style={{
+                  flex: 2, padding: 13, borderRadius: 10, fontWeight: 500, fontSize: 14,
+                  background: newName.trim() ? '#22c55e' : '#1a1a1a',
+                  color: newName.trim() ? '#000' : '#555',
                   opacity: saving ? .6 : 1,
                 }}>{saving ? 'Saving…' : 'Add & Select'}</button>
               </div>
             </div>
           ) : loading ? (
             <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 40 }}>
-              <div style={{ width: 24, height: 24, border: '2px solid var(--border)', borderTopColor: 'var(--neon)', borderRadius: '50%', animation: 'spin .7s linear infinite' }} />
+              <div style={{ width: 22, height: 22, border: '2px solid #1e1e1e', borderTopColor: '#22c55e', borderRadius: '50%', animation: 'spin .7s linear infinite' }} />
             </div>
           ) : (
             <>
               {!query && recents.length > 0 && <Section title="Recent" items={recents} onSelect={onSelect} />}
               {others.length > 0
                 ? <Section title={!query && recents.length > 0 ? 'All Exercises' : ''} items={others} onSelect={onSelect} />
-                : <div style={{ textAlign: 'center', paddingTop: 36, color: 'var(--muted)' }}>
-                    <p style={{ fontSize: 28, marginBottom: 8 }}>🔍</p>
-                    <p style={{ fontWeight: 600, fontSize: 14 }}>No match</p>
+                : <div style={{ textAlign: 'center', paddingTop: 36, color: '#555' }}>
+                    <p style={{ fontSize: 13 }}>No match</p>
                   </div>
               }
-              {/* Create new */}
               <button onClick={() => { setCreating(true); setNewName(query) }} style={{
-                width: '100%', padding: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                background: 'transparent', borderTop: '1px solid var(--border)',
-                color: 'var(--neon)', fontWeight: 700, fontSize: 14,
+                width: '100%', padding: '14px 16px', borderTop: '1px solid #1e1e1e',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                color: '#22c55e', fontWeight: 500, fontSize: 13, minHeight: 48,
               }}>
-                <span style={{ fontSize: 18, lineHeight: 1 }}>+</span>
+                <span style={{ fontSize: 16 }}>+</span>
                 {query ? `Create "${query}"` : 'Create new exercise'}
               </button>
             </>
@@ -181,24 +155,18 @@ function Section({ title, items, onSelect }) {
   return (
     <div>
       {title && (
-        <p style={{
-          padding: '12px 16px 6px', fontSize: 10, fontWeight: 800,
-          letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--neon)', opacity: .6,
-        }}>{title}</p>
+        <p style={{ padding: '10px 16px 4px', fontSize: 11, color: '#444', letterSpacing: '.07em', textTransform: 'uppercase' }}>{title}</p>
       )}
       {items.map((ex, i) => (
         <button key={ex.id} onClick={() => onSelect(ex)} style={{
           width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '14px 16px', minHeight: 54, background: 'transparent', textAlign: 'left',
-          borderTop: i === 0 && !title ? 'none' : '1px solid var(--border)',
-          transition: 'background .1s',
+          padding: '13px 16px', minHeight: 48, textAlign: 'left',
+          borderTop: i === 0 && !title ? 'none' : '1px solid #1a1a1a',
         }}>
-          <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)' }}>{ex.name}</span>
-          <span style={{
-            fontSize: 10, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase',
-            color: 'var(--neon)', opacity: .6, background: 'rgba(0,255,136,.08)',
-            padding: '3px 8px', borderRadius: 6,
-          }}>{ex.muscle_group}</span>
+          <span style={{ fontSize: 14, fontWeight: 500, color: '#ddd' }}>{ex.name}</span>
+          <span style={{ fontSize: 10, color: '#444', textTransform: 'uppercase', letterSpacing: '.06em', background: '#1a1a1a', padding: '2px 7px', borderRadius: 6 }}>
+            {ex.muscle_group}
+          </span>
         </button>
       ))}
     </div>

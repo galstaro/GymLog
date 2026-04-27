@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gymlog-v1'
+const CACHE_NAME = 'gymlog-v2'
 const OFFLINE_QUEUE_KEY = 'gymlog-offline-queue'
 
 // App shell files to cache
