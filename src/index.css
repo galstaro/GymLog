@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --neon: #00ff88;
+  --neon-dim: #00cc6a;
+  --cyan: #00e5ff;
+  --purple: #a855f7;
+  --red: #ff2d55;
+  --bg:  #07070f;
+  --bg2: #0e0e1a;
+  --bg3: #13131f;
+  --text: #eeeeff;
+  --muted: #44445a;
+  --border: rgba(255,255,255,0.07);
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+
+button { cursor: pointer; font-family: inherit; border: none; }
+input  { font-family: inherit; }
+
+.glow     { box-shadow: 0 0 24px rgba(0,255,136,.4), 0 0 6px rgba(0,255,136,.2); }
+.glow-sm  { box-shadow: 0 0 10px rgba(0,255,136,.25); }
+.grad {
+  background: linear-gradient(120deg, #00ff88 0%, #00e5ff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes neonPulse {
+  0%,100% { box-shadow: 0 0 16px rgba(0,255,136,.3); }
+  50%     { box-shadow: 0 0 36px rgba(0,255,136,.7), 0 0 64px rgba(0,255,136,.15); }
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.fade-up { animation: fadeUp .3s cubic-bezier(.22,1,.36,1) both; }
+.fade-in { animation: fadeIn .2s ease both; }
+.pulse   { animation: neonPulse 2s ease-in-out infinite; }
+
+::-webkit-scrollbar       { width: 2px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0,255,136,.2); border-radius: 99px; }
