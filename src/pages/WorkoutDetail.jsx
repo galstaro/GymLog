@@ -61,7 +61,7 @@ export default function WorkoutDetail() {
   const totalVolume = blocks.flatMap(b => b.sets).reduce((sum, s) => sum + s.weight_kg * s.reps, 0)
 
   return (
-    <div style={{ flex: 1, paddingBottom: 90 }}>
+    <div style={{ flex: 1, paddingBottom: 'var(--page-pb)' }}>
       {/* Top bar */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 16px 12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>

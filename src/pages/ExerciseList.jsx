@@ -28,7 +28,7 @@ export default function ExerciseList() {
   )
 
   return (
-    <div style={{ flex: 1, paddingBottom: 80 }}>
+    <div style={{ flex: 1, paddingBottom: 'var(--page-pb)' }}>
       {/* Header */}
       <div style={{ padding: '16px 16px 12px' }}>
         <div style={{ fontSize: 20, fontWeight: 500, color: '#fff' }}>Exercises</div>

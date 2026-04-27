@@ -3,28 +3,41 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg: #0a0a0a;
-  --surface: #111111;
-  --border: #1e1e1e;
-  --border-s: #1a1a1a;
-  --border-d: #2a2a2a;
+  --bg: #060608;
+  --surface: #0e0e12;
+  --surface2: #13131a;
+  --border: #1c1c26;
+  --border-s: #18181f;
+  --border-d: #252530;
   --green: #22c55e;
-  --green-dk: #0f2d18;
+  --neon: #4ade80;
+  --green-dk: #0a1f10;
+  --green-glow: rgba(34,197,94,.35);
+  --green-glow2: rgba(34,197,94,.15);
   --text: #ffffff;
-  --text2: #dddddd;
-  --muted: #999999;
-  --hint: #555555;
-  --disabled: #444444;
-  --warn-bg: #1f1800;
+  --text2: #e2e2e8;
+  --muted: #8888a0;
+  --hint: #4a4a60;
+  --disabled: #35353f;
+  --warn-bg: #1a1200;
   --warn-bd: #ba7517;
-  --warn-tx: #EF9F27;
+  --warn-tx: #f59e0b;
+
+  /* layout */
+  --nav-h: 64px;
+  --inset-top: env(safe-area-inset-top, 0px);
+  --inset-bottom: env(safe-area-inset-bottom, 0px);
+  --page-pb: calc(var(--nav-h) + var(--inset-bottom) + 12px);
 }
 
-html, body { height: 100%; background: var(--bg); color: var(--text); }
+html { height: 100%; background: var(--bg); }
 body {
+  height: 100%;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   overscroll-behavior: none;
+  background: var(--bg);
+  color: var(--text);
 }
 
 #root {
@@ -33,6 +46,7 @@ body {
   margin: 0 auto;
   display: flex;
   flex-direction: column;
+  padding-top: var(--inset-top);
 }
 
 button { cursor: pointer; border: none; font-family: inherit; background: transparent; }
@@ -40,7 +54,10 @@ input, textarea { font-family: inherit; }
 input[type=number]::-webkit-inner-spin-button,
 input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
 
+/* ── Animations ────────────────────────────────────────── */
 @keyframes spin { to { transform: rotate(360deg); } }
-@keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes popIn { 0% { transform: scale(0); opacity: 0; } 70% { transform: scale(1.15); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
-@keyframes glowPulse { 0%,100% { opacity: .35; } 50% { opacity: .75; } }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes popIn { 0% { transform: scale(0); opacity: 0; } 70% { transform: scale(1.18); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes glowPulse { 0%,100% { opacity: .3; } 50% { opacity: .8; } }
+@keyframes neonPulse { 0%,100% { box-shadow: 0 0 20px var(--green-glow), 0 0 40px rgba(34,197,94,.15); } 50% { box-shadow: 0 0 35px var(--green-glow), 0 0 70px rgba(34,197,94,.25); } }
+@keyframes shimmer { 0% { background-position: -200% center; } 100% { background-position: 200% center; } }

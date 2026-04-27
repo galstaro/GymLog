@@ -53,17 +53,18 @@ function Stepper({ value, onDec, onInc, color = '#fff', decStep, incStep }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       <button onPointerDown={e => { e.stopPropagation(); onDec() }} style={{
-        width: 36, height: 36, borderRadius: 10,
-        background: '#1e1e1e', border: '1px solid #2a2a2a',
-        fontSize: 20, color: '#888', fontWeight: 700,
+        width: 38, height: 38, borderRadius: 11,
+        background: 'var(--surface2)', border: '1px solid var(--border-d)',
+        fontSize: 20, color: 'var(--muted)', fontWeight: 700,
         display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
       }}>−</button>
-      <span style={{ fontSize: 17, fontWeight: 800, color, minWidth: 46, textAlign: 'center' }}>{value}</span>
+      <span style={{ fontSize: 18, fontWeight: 800, color, minWidth: 44, textAlign: 'center' }}>{value}</span>
       <button onPointerDown={e => { e.stopPropagation(); onInc() }} style={{
-        width: 36, height: 36, borderRadius: 10,
-        background: '#22c55e', border: 'none',
-        fontSize: 20, color: '#000', fontWeight: 800,
+        width: 38, height: 38, borderRadius: 11,
+        background: 'linear-gradient(135deg, #22c55e, #4ade80)', border: 'none',
+        fontSize: 20, color: '#000', fontWeight: 900,
         display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+        boxShadow: '0 0 10px rgba(34,197,94,.3)',
       }}>+</button>
     </div>
   )
@@ -241,37 +242,42 @@ export default function WorkoutLogger() {
   const canFinish = blocks.length > 0 && !finishing
 
   return (
-    <div style={{ flex: 1, background: '#0a0a0a', paddingBottom: 90 }}>
+    <div style={{ flex: 1, background: 'var(--bg)', paddingBottom: 'var(--page-pb)' }}>
 
       {/* Rest timer strip */}
       {rest && (
-        <div style={{ position: 'sticky', top: 0, zIndex: 60 }}>
-          <div style={{ height: 4, background: '#1a1a1a' }}>
-            <div style={{ height: '100%', background: '#22c55e', width: `${(rest.remaining / rest.total) * 100}%`, transition: 'width 1s linear', boxShadow: '0 0 8px rgba(34,197,94,.5)' }} />
+        <div style={{ position: 'sticky', top: 'var(--inset-top)', zIndex: 60 }}>
+          <div style={{ height: 5, background: 'var(--border-s)' }}>
+            <div style={{ height: '100%', background: 'linear-gradient(90deg, #22c55e, #4ade80)', width: `${(rest.remaining / rest.total) * 100}%`, transition: 'width 1s linear', boxShadow: '0 0 12px rgba(34,197,94,.7)' }} />
           </div>
-          <div style={{ position: 'absolute', top: 7, right: 16, fontSize: 12, color: '#22c55e', fontWeight: 700, letterSpacing: '0.02em' }}>
-            Rest {rest.remaining}s
+          <div style={{ position: 'absolute', top: 8, right: 16, fontSize: 12, color: '#4ade80', fontWeight: 800, letterSpacing: '0.05em' }}>
+            REST {rest.remaining}s
           </div>
         </div>
       )}
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', padding: '18px 20px 14px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px 14px' }}>
         <div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: '#fff', letterSpacing: -0.5 }}>Live Workout</div>
-          <div style={{ fontSize: 14, color: '#22c55e', marginTop: 3, fontVariantNumeric: 'tabular-nums', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 5 }}>
-            {fmt(elapsed)} <span>⏱</span>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#22c55e', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 4 }}>● LIVE</div>
+          <div style={{ fontSize: 26, fontWeight: 900, color: '#fff', letterSpacing: -0.8, lineHeight: 1 }}>Workout</div>
+          <div style={{ fontSize: 20, color: '#4ade80', marginTop: 4, fontVariantNumeric: 'tabular-nums', fontWeight: 800, letterSpacing: -0.5, textShadow: '0 0 16px rgba(74,222,128,.5)' }}>
+            {fmt(elapsed)}
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-          <button onClick={() => setDiscardConfirm(true)} style={{ padding: '10px 14px', minHeight: 44, borderRadius: 12, fontSize: 14, fontWeight: 600, color: '#555', border: '1px solid #222', background: 'transparent' }}>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => setDiscardConfirm(true)} style={{
+            padding: '10px 16px', minHeight: 46, borderRadius: 14, fontSize: 14, fontWeight: 600,
+            color: 'var(--hint)', border: '1px solid var(--border)', background: 'transparent',
+          }}>
             Discard
           </button>
           <button onClick={finish} disabled={!canFinish} style={{
-            padding: '10px 18px', minHeight: 44, borderRadius: 12, fontSize: 14, fontWeight: 700,
-            background: canFinish ? '#22c55e' : '#1a1a1a',
-            color: canFinish ? '#000' : '#444',
-            boxShadow: canFinish ? '0 0 14px rgba(34,197,94,.3)' : 'none',
+            padding: '10px 20px', minHeight: 46, borderRadius: 14, fontSize: 14, fontWeight: 800,
+            background: canFinish ? 'linear-gradient(135deg, #22c55e, #4ade80)' : 'var(--surface)',
+            color: canFinish ? '#000' : 'var(--disabled)',
+            boxShadow: canFinish ? '0 0 20px rgba(34,197,94,.4)' : 'none',
+            letterSpacing: -0.2,
           }}>
             {finishing ? '…' : 'Finish'}
           </button>
@@ -279,7 +285,7 @@ export default function WorkoutLogger() {
       </div>
 
       {/* Exercise blocks */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '0 16px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '0 16px' }}>
         {blocks.map((block, bi) => {
           const doneSets = block.sets.filter(s => s.done)
           const currentVol = doneSets.reduce((sum, s) => sum + (s.weight || 0) * s.reps, 0)
@@ -291,13 +297,13 @@ export default function WorkoutLogger() {
             <div key={block.exercise.id}>
               {block.stuck && bi > 0 && <StuckBanner name={block.exercise.name} weight={block.stuck.weight} />}
 
-              <div style={{ background: '#141414', borderRadius: 18, border: '1px solid #1e1e1e', overflow: 'hidden' }}>
+              <div style={{ background: 'var(--surface)', borderRadius: 20, border: '1px solid var(--border)', overflow: 'hidden' }}>
                 {/* Block header */}
                 <div style={{ padding: '14px 16px 10px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 20, fontWeight: 800, color: '#fff', letterSpacing: -0.3 }}>{block.exercise.name}</div>
+                    <div style={{ fontSize: 19, fontWeight: 800, color: '#fff', letterSpacing: -0.3 }}>{block.exercise.name}</div>
                     {lastTimeStr && (
-                      <div style={{ fontSize: 11, color: '#444', marginTop: 3, fontWeight: 500 }}>Last time: {lastTimeStr}</div>
+                      <div style={{ fontSize: 11, color: 'var(--hint)', marginTop: 3, fontWeight: 500 }}>Last: {lastTimeStr}</div>
                     )}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
@@ -307,9 +313,9 @@ export default function WorkoutLogger() {
                 </div>
 
                 {/* Column headers */}
-                <div style={{ display: 'grid', gridTemplateColumns: '30px 1fr 1fr 52px', padding: '0 16px 4px', borderTop: '1px solid #1a1a1a' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '30px 1fr 1fr 52px', padding: '0 16px 4px', borderTop: '1px solid var(--border-s)' }}>
                   {['SET', 'KG', 'REPS', ''].map((h, i) => (
-                    <span key={i} style={{ fontSize: 10, color: '#333', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700, paddingTop: 8, paddingBottom: 2 }}>{h}</span>
+                    <span key={i} style={{ fontSize: 10, color: 'var(--disabled)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700, paddingTop: 8, paddingBottom: 2 }}>{h}</span>
                   ))}
                 </div>
 
@@ -318,51 +324,39 @@ export default function WorkoutLogger() {
                   <div key={set.lid} style={{
                     display: 'grid', gridTemplateColumns: '30px 1fr 1fr 52px',
                     alignItems: 'center', padding: '8px 16px',
-                    borderTop: '1px solid #1a1a1a',
-                    minHeight: 60,
-                    background: set.done ? 'rgba(34,197,94,.04)' : 'transparent',
+                    borderTop: '1px solid var(--border-s)',
+                    minHeight: 62,
+                    background: set.done ? 'rgba(34,197,94,.06)' : 'transparent',
                   }}>
-                    {/* Set number */}
-                    <span style={{ fontSize: 14, color: '#555', fontWeight: 700 }}>{si + 1}</span>
+                    <span style={{ fontSize: 13, color: 'var(--hint)', fontWeight: 700 }}>{si + 1}</span>
 
-                    {/* KG */}
                     {set.done ? (
-                      <span style={{ fontSize: 17, fontWeight: 800, color: '#ddd' }}>{set.weight}</span>
+                      <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--text2)' }}>{set.weight}</span>
                     ) : (
-                      <Stepper
-                        value={set.weight || 0}
-                        onDec={() => adjustSet(bi, si, 'weight', -1)}
-                        onInc={() => adjustSet(bi, si, 'weight', 1)}
-                        color="#ddd"
-                      />
+                      <Stepper value={set.weight || 0} onDec={() => adjustSet(bi, si, 'weight', -1)} onInc={() => adjustSet(bi, si, 'weight', 1)} color="var(--text2)" />
                     )}
 
-                    {/* Reps */}
                     {set.done ? (
-                      <span style={{ fontSize: 17, fontWeight: 800, color: '#22c55e' }}>{set.reps}</span>
+                      <span style={{ fontSize: 18, fontWeight: 800, color: '#4ade80', textShadow: '0 0 10px rgba(74,222,128,.4)' }}>{set.reps}</span>
                     ) : (
-                      <Stepper
-                        value={set.reps || 0}
-                        onDec={() => adjustSet(bi, si, 'reps', -1)}
-                        onInc={() => adjustSet(bi, si, 'reps', 1)}
-                        color="#22c55e"
-                      />
+                      <Stepper value={set.reps || 0} onDec={() => adjustSet(bi, si, 'reps', -1)} onInc={() => adjustSet(bi, si, 'reps', 1)} color="#22c55e" />
                     )}
 
-                    {/* Check */}
                     {set.done ? (
-                      <div style={{ width: 38, height: 38, borderRadius: 12, background: '#22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center', justifySelf: 'end' }}>
+                      <div style={{ width: 40, height: 40, borderRadius: 12, background: 'linear-gradient(135deg,#22c55e,#4ade80)', display: 'flex', alignItems: 'center', justifyContent: 'center', justifySelf: 'end', boxShadow: '0 0 12px rgba(34,197,94,.4)' }}>
                         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                           <path d="M2.5 8l4 4 7-7" stroke="#000" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       </div>
                     ) : (
                       <button onClick={() => logSet(bi, si)} style={{
-                        width: 38, height: 38, borderRadius: 12, border: '1.5px solid #2a2a2a',
-                        background: '#1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'center', justifySelf: 'end',
+                        width: 40, height: 40, borderRadius: 12,
+                        border: '1.5px solid rgba(34,197,94,.25)',
+                        background: 'rgba(34,197,94,.08)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', justifySelf: 'end',
                       }}>
                         <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                          <path d="M2.5 8l4 4 7-7" stroke="#333" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                          <path d="M2.5 8l4 4 7-7" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       </button>
                     )}
@@ -371,9 +365,10 @@ export default function WorkoutLogger() {
 
                 {/* Add set */}
                 <button onClick={() => addSet(bi)} style={{
-                  width: '100%', padding: '13px 16px', borderTop: '1px solid #1a1a1a',
-                  fontSize: 14, color: '#555', textAlign: 'center',
-                  background: '#0f0f0f', fontWeight: 600, minHeight: 48,
+                  width: '100%', padding: '12px 16px', borderTop: '1px solid var(--border-s)',
+                  fontSize: 13, color: 'var(--hint)', textAlign: 'center',
+                  background: 'transparent', fontWeight: 600, minHeight: 46,
+                  letterSpacing: '0.02em',
                 }}>
                   + Add set
                 </button>
@@ -390,11 +385,12 @@ export default function WorkoutLogger() {
       </div>
 
       {/* Add exercise button */}
-      <div style={{ margin: blocks.length > 0 ? '14px 16px 0' : '4px 16px 0' }}>
+      <div style={{ margin: blocks.length > 0 ? '12px 16px 0' : '4px 16px 0' }}>
         <button onClick={() => setPickerOpen(true)} style={{
-          width: '100%', padding: 16, borderRadius: 16, minHeight: 56,
-          border: '1.5px dashed #2a2a2a', fontSize: 15, color: '#555', fontWeight: 600,
+          width: '100%', padding: 16, borderRadius: 18, minHeight: 58,
+          border: '1.5px dashed rgba(34,197,94,.25)', fontSize: 15, color: '#22c55e', fontWeight: 700,
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          background: 'rgba(34,197,94,.04)',
         }}>
           + Add exercise
         </button>

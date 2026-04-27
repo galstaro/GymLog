@@ -40,7 +40,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div style={{ flex: 1, paddingBottom: 84, background: '#0a0a0a' }}>
+    <div style={{ flex: 1, paddingBottom: 'var(--page-pb)', background: '#0a0a0a' }}>
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '20px 20px 16px' }}>

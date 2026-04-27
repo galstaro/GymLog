@@ -148,7 +148,7 @@ export default function ExerciseProgress() {
   const pr = sessions.length ? Math.max(...sessions.map(s => s.maxWeight)) : null
 
   return (
-    <div style={{ flex: 1, paddingBottom: 80, background: '#0a0a0a' }}>
+    <div style={{ flex: 1, paddingBottom: 'var(--page-pb)', background: '#0a0a0a' }}>
       {/* Top bar */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 20px 14px' }}>
         <div style={{ flex: 1 }}>
