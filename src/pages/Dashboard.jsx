@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth, signOut } from '../hooks/useAuth.jsx'
 import BottomNav from '../components/BottomNav.jsx'
@@ -10,7 +10,7 @@ const DAY_PLANS = [
   { label: 'Day C', muscle: 'Legs + Core' },
 ]
 
-function fmtDuration(secs) {
+function fmtDur(secs) {
   if (!secs) return null
   const m = Math.floor(secs / 60)
   return m < 60 ? `${m} min` : `${Math.floor(m / 60)}h ${m % 60}m`
@@ -29,10 +29,12 @@ function fmtDate(dateStr) {
 export default function Dashboard() {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const [data, setData] = useState(null)
   const [showProfile, setShowProfile] = useState(false)
 
-  useEffect(() => { if (user) load() }, [user])
+  // Reload on every visit (location.key changes on each navigation)
+  useEffect(() => { if (user) load() }, [user, location.key])
 
   async function load() {
     const today = new Date()
@@ -66,10 +68,13 @@ export default function Dashboard() {
 
     const recentWorkouts = await Promise.all(workouts.slice(0, 5).map(async (w) => {
       const { data: wSets } = await supabase.from('sets')
-        .select('exercise_id, weight_kg, reps').eq('workout_id', w.id)
+        .select('exercise_id, weight_kg, reps, exercises(name)').eq('workout_id', w.id)
       const exerciseCount = new Set(wSets?.map(s => s.exercise_id)).size
       const volume = wSets?.reduce((sum, s) => sum + s.weight_kg * s.reps, 0) || 0
-      return { ...w, exerciseCount, volume }
+      // Auto-title from exercise names
+      const names = [...new Set(wSets?.map(s => s.exercises?.name).filter(Boolean))]
+      const title = w.notes || (names.length > 0 ? names.slice(0, 2).join(' + ') : `${exerciseCount} exercises`)
+      return { ...w, exerciseCount, volume, title }
     }))
 
     const enriched = recentWorkouts.map((w, i) => {
@@ -88,38 +93,41 @@ export default function Dashboard() {
   }
 
   if (!data) return (
-    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
-      <div style={{ width: 24, height: 24, border: '2px solid #1e1e1e', borderTopColor: '#22c55e', borderRadius: '50%', animation: 'spin .7s linear infinite' }} />
+    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#0a0a0a' }}>
+      <div style={{ width: 26, height: 26, border: '2px solid #1e1e1e', borderTopColor: '#22c55e', borderRadius: '50%', animation: 'spin .7s linear infinite' }} />
     </div>
   )
 
-  const name = user?.email?.split('@')[0] || 'there'
+  const name = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'there'
 
   return (
-    <div style={{ flex: 1, paddingBottom: 80, background: '#0a0a0a' }}>
+    <div style={{ flex: 1, paddingBottom: 84, background: '#0a0a0a' }}>
 
       {/* Topbar */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', padding: '20px 20px 16px' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', padding: '20px 20px 14px' }}>
         <div>
-          <div style={{ fontSize: 26, fontWeight: 700, color: '#fff', letterSpacing: -0.5 }}>GymLog</div>
-          <div style={{ fontSize: 13, color: '#555', marginTop: 1 }}>Hey, {name}</div>
+          <div style={{ fontSize: 28, fontWeight: 800, color: '#fff', letterSpacing: -1 }}>GymLog</div>
+          <div style={{ fontSize: 13, color: '#555', marginTop: 2 }}>Hey, {name}</div>
         </div>
         <div style={{ position: 'relative', marginTop: 4 }}>
           <button onClick={() => setShowProfile(p => !p)} style={{
-            width: 36, height: 36, borderRadius: '50%',
-            background: '#1a1a1a', border: '1px solid #2a2a2a',
+            width: 38, height: 38, borderRadius: '50%',
+            background: '#181818', border: '1px solid #2a2a2a',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <circle cx="8" cy="5.5" r="2.5" stroke="#666" strokeWidth="1.4" />
-              <path d="M2.5 13.5c0-3 2.5-5 5.5-5s5.5 2 5.5 5" stroke="#666" strokeWidth="1.4" strokeLinecap="round" />
+            <svg width="17" height="17" viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="5.5" r="2.5" stroke="#666" strokeWidth="1.5" />
+              <path d="M2.5 13.5c0-3 2.5-5 5.5-5s5.5 2 5.5 5" stroke="#666" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
           </button>
           {showProfile && (
             <>
               <div onClick={() => setShowProfile(false)} style={{ position: 'fixed', inset: 0, zIndex: 98 }} />
-              <div style={{ position: 'absolute', top: 44, right: 0, zIndex: 99, background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: 12, padding: 4, minWidth: 140 }}>
-                <button onClick={async () => { setShowProfile(false); await signOut() }} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, textAlign: 'left', fontSize: 13, color: '#ff4444', fontWeight: 500 }}>
+              <div style={{ position: 'absolute', top: 46, right: 0, zIndex: 99, background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: 14, padding: 5, minWidth: 150 }}>
+                <button onClick={() => { setShowProfile(false); navigate('/settings') }} style={{ width: '100%', padding: '11px 14px', borderRadius: 10, textAlign: 'left', fontSize: 14, color: '#bbb', fontWeight: 500 }}>
+                  Settings
+                </button>
+                <button onClick={async () => { setShowProfile(false); await signOut() }} style={{ width: '100%', padding: '11px 14px', borderRadius: 10, textAlign: 'left', fontSize: 14, color: '#ff4444', fontWeight: 500 }}>
                   Sign Out
                 </button>
               </div>
@@ -129,11 +137,17 @@ export default function Dashboard() {
       </div>
 
       {/* Streak bar */}
-      <div style={{ margin: '0 20px 14px', background: '#161616', border: '1px solid #222', borderRadius: 14, padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 24 }}>🔥</span>
+      <div style={{
+        margin: '0 16px 14px',
+        background: 'linear-gradient(135deg, #0d1f10 0%, #111 100%)',
+        border: '1px solid rgba(34,197,94,.18)',
+        borderRadius: 16, padding: '14px 16px',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontSize: 28 }}>🔥</span>
           <div>
-            <div style={{ fontSize: 17, fontWeight: 700, color: '#22c55e', letterSpacing: -0.2 }}>
+            <div style={{ fontSize: 18, fontWeight: 800, color: '#22c55e', letterSpacing: -0.5 }}>
               {data.streak}-day streak
             </div>
             <div style={{ fontSize: 12, color: '#555', marginTop: 1 }}>Keep it going</div>
@@ -141,19 +155,20 @@ export default function Dashboard() {
         </div>
         <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
           {data.last7.map((active, i) => (
-            <div key={i} style={{ width: 7, height: 7, borderRadius: '50%', background: active ? '#22c55e' : '#2a2a2a' }} />
+            <div key={i} style={{ width: 7, height: 7, borderRadius: '50%', background: active ? '#22c55e' : '#2a2a2a', boxShadow: active ? '0 0 6px rgba(34,197,94,.5)' : 'none' }} />
           ))}
         </div>
       </div>
 
       {/* Start Workout */}
-      <div style={{ margin: '0 20px 16px' }}>
+      <div style={{ margin: '0 16px 16px' }}>
         <button onClick={() => navigate('/workout/active')} style={{
-          width: '100%', background: '#22c55e', borderRadius: 14, padding: '15px 0',
-          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+          width: '100%', background: '#22c55e', borderRadius: 16, padding: '16px 0',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+          boxShadow: '0 0 28px rgba(34,197,94,.3), 0 4px 16px rgba(0,0,0,.4)',
         }}>
-          <span style={{ fontSize: 16, fontWeight: 700, color: '#000' }}>Start Workout</span>
-          <span style={{ fontSize: 12, color: 'rgba(0,0,0,0.45)', fontWeight: 500 }}>
+          <span style={{ fontSize: 17, fontWeight: 800, color: '#000', letterSpacing: -0.2 }}>Start Workout</span>
+          <span style={{ fontSize: 12, color: 'rgba(0,0,0,.45)', fontWeight: 600 }}>
             {data.nextDay.label} · {data.nextDay.muscle}
           </span>
         </button>
@@ -163,14 +178,14 @@ export default function Dashboard() {
       <div style={{ height: 1, background: '#161616', margin: '0 0 16px' }} />
 
       {/* Stats row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, margin: '0 20px 22px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, margin: '0 16px 22px' }}>
         {[
           { value: data.weekWorkouts, label: 'Workouts this week' },
           { value: data.monthVolume.toLocaleString(), label: 'kg lifted this month' },
         ].map(stat => (
-          <div key={stat.label} style={{ background: '#161616', borderRadius: 14, border: '1px solid #1e1e1e', padding: '14px 16px' }}>
-            <div style={{ fontSize: 30, fontWeight: 700, color: '#fff', letterSpacing: -1 }}>{stat.value}</div>
-            <div style={{ fontSize: 12, color: '#555', marginTop: 4, fontWeight: 400 }}>{stat.label}</div>
+          <div key={stat.label} style={{ background: '#131313', borderRadius: 16, border: '1px solid #1e1e1e', padding: '16px 16px' }}>
+            <div style={{ fontSize: 36, fontWeight: 800, color: '#fff', letterSpacing: -1.5, lineHeight: 1 }}>{stat.value}</div>
+            <div style={{ fontSize: 12, color: '#555', marginTop: 6, fontWeight: 500 }}>{stat.label}</div>
           </div>
         ))}
       </div>
@@ -178,31 +193,27 @@ export default function Dashboard() {
       {/* Recent workouts */}
       {data.recentWorkouts.length > 0 && (
         <>
-          <div style={{ fontSize: 11, fontWeight: 600, color: '#444', letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 20px 10px' }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#555', letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 16px 10px' }}>
             Recent Workouts
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, margin: '0 20px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, margin: '0 16px' }}>
             {data.recentWorkouts.map(w => (
               <button key={w.id} onClick={() => navigate(`/workout/${w.id}`)} style={{
-                background: '#161616', borderRadius: 14, border: '1px solid #1e1e1e',
+                background: '#131313', borderRadius: 16, border: '1px solid #1e1e1e',
                 padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                textAlign: 'left', width: '100%', minHeight: 62,
+                textAlign: 'left', width: '100%', minHeight: 64,
+                borderLeft: w.badge?.type === 'up' ? '3px solid #22c55e' : '3px solid #1e1e1e',
               }}>
                 <div>
-                  <div style={{ fontSize: 15, fontWeight: 600, color: '#fff', marginBottom: 3 }}>
-                    {w.notes || (w.exerciseCount > 0
-                      ? `${w.exerciseCount} exercise${w.exerciseCount !== 1 ? 's' : ''}`
-                      : fmtDate(w.date)
-                    )}
-                  </div>
-                  <div style={{ fontSize: 12, color: '#555' }}>
-                    {fmtDate(w.date)}{w.duration_seconds ? ` · ${fmtDuration(w.duration_seconds)}` : ''}{w.exerciseCount ? ` · ${w.exerciseCount} exercises` : ''}
+                  <div style={{ fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 4 }}>{w.title}</div>
+                  <div style={{ fontSize: 12, color: '#555', fontWeight: 500 }}>
+                    {fmtDate(w.date)}{w.duration_seconds ? ` · ${fmtDur(w.duration_seconds)}` : ''}{w.exerciseCount ? ` · ${w.exerciseCount} exercises` : ''}
                   </div>
                 </div>
                 {w.badge && (
                   <div style={{
-                    fontSize: 12, fontWeight: 500, padding: '4px 10px', borderRadius: 20, flexShrink: 0, marginLeft: 10,
-                    background: w.badge.type === 'same' ? '#1e1e1e' : w.badge.type === 'up' ? 'rgba(34,197,94,.15)' : 'rgba(255,68,68,.1)',
+                    fontSize: 12, fontWeight: 600, padding: '5px 10px', borderRadius: 20, flexShrink: 0, marginLeft: 10,
+                    background: w.badge.type === 'same' ? '#1a1a1a' : w.badge.type === 'up' ? 'rgba(34,197,94,.12)' : 'rgba(255,68,68,.08)',
                     border: `1px solid ${w.badge.type === 'same' ? '#2a2a2a' : w.badge.type === 'up' ? 'rgba(34,197,94,.3)' : 'rgba(255,68,68,.25)'}`,
                     color: w.badge.type === 'same' ? '#555' : w.badge.type === 'up' ? '#22c55e' : '#ff6666',
                   }}>
@@ -216,9 +227,10 @@ export default function Dashboard() {
       )}
 
       {data.recentWorkouts.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '40px 20px', color: '#444' }}>
-          <div style={{ fontSize: 14 }}>No workouts yet</div>
-          <div style={{ fontSize: 12, marginTop: 4, color: '#333' }}>Hit Start Workout to begin</div>
+        <div style={{ textAlign: 'center', padding: '48px 20px' }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>💪</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: '#fff', marginBottom: 6 }}>No workouts yet</div>
+          <div style={{ fontSize: 13, color: '#444' }}>Hit Start Workout to begin</div>
         </div>
       )}
 
