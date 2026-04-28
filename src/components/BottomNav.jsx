@@ -58,8 +58,10 @@ export default function BottomNav() {
       WebkitBackdropFilter: 'blur(24px)',
       borderTop: '0.5px solid rgba(34,197,94,0.12)',
       zIndex: 50,
-      /* extend background into the safe area so there's no gap */
+      /* fill behind home indicator on notched phones */
       paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+      /* iOS < 11.2 fallback */
+      WebkitPaddingBefore: 'constant(safe-area-inset-bottom)',
     }}>
       {/* inner wrapper caps width and centers on wide screens */}
       <div style={{ display: 'flex', maxWidth: 430, margin: '0 auto' }}>

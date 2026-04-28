@@ -49,20 +49,20 @@ function StuckBanner({ name, weight }) {
 }
 
 // +/- stepper control
-function Stepper({ value, onDec, onInc, color = '#fff', decStep, incStep }) {
+function Stepper({ value, onDec, onInc, color = '#fff' }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
       <button onPointerDown={e => { e.stopPropagation(); onDec() }} style={{
-        width: 38, height: 38, borderRadius: 11,
+        width: 34, height: 34, borderRadius: 10,
         background: 'var(--surface2)', border: '1px solid var(--border-d)',
-        fontSize: 20, color: 'var(--muted)', fontWeight: 700,
+        fontSize: 18, color: 'var(--muted)', fontWeight: 700,
         display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
       }}>−</button>
-      <span style={{ fontSize: 18, fontWeight: 800, color, minWidth: 44, textAlign: 'center' }}>{value}</span>
+      <span style={{ fontSize: 16, fontWeight: 800, color, minWidth: 36, textAlign: 'center' }}>{value}</span>
       <button onPointerDown={e => { e.stopPropagation(); onInc() }} style={{
-        width: 38, height: 38, borderRadius: 11,
+        width: 34, height: 34, borderRadius: 10,
         background: 'linear-gradient(135deg, #22c55e, #4ade80)', border: 'none',
-        fontSize: 20, color: '#000', fontWeight: 900,
+        fontSize: 18, color: '#000', fontWeight: 900,
         display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
         boxShadow: '0 0 10px rgba(34,197,94,.3)',
       }}>+</button>
@@ -313,7 +313,7 @@ export default function WorkoutLogger() {
                 </div>
 
                 {/* Column headers */}
-                <div style={{ display: 'grid', gridTemplateColumns: '30px 1fr 1fr 52px', padding: '0 16px 4px', borderTop: '1px solid var(--border-s)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '26px 1fr 1fr 46px', padding: '0 12px 4px', borderTop: '1px solid var(--border-s)' }}>
                   {['SET', 'KG', 'REPS', ''].map((h, i) => (
                     <span key={i} style={{ fontSize: 10, color: 'var(--disabled)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700, paddingTop: 8, paddingBottom: 2 }}>{h}</span>
                   ))}
@@ -322,8 +322,8 @@ export default function WorkoutLogger() {
                 {/* Set rows */}
                 {block.sets.map((set, si) => (
                   <div key={set.lid} style={{
-                    display: 'grid', gridTemplateColumns: '30px 1fr 1fr 52px',
-                    alignItems: 'center', padding: '8px 16px',
+                    display: 'grid', gridTemplateColumns: '26px 1fr 1fr 46px',
+                    alignItems: 'center', padding: '8px 12px',
                     borderTop: '1px solid var(--border-s)',
                     minHeight: 62,
                     background: set.done ? 'rgba(34,197,94,.06)' : 'transparent',
@@ -343,14 +343,14 @@ export default function WorkoutLogger() {
                     )}
 
                     {set.done ? (
-                      <div style={{ width: 40, height: 40, borderRadius: 12, background: 'linear-gradient(135deg,#22c55e,#4ade80)', display: 'flex', alignItems: 'center', justifyContent: 'center', justifySelf: 'end', boxShadow: '0 0 12px rgba(34,197,94,.4)' }}>
+                      <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg,#22c55e,#4ade80)', display: 'flex', alignItems: 'center', justifyContent: 'center', justifySelf: 'end', boxShadow: '0 0 12px rgba(34,197,94,.4)' }}>
                         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                           <path d="M2.5 8l4 4 7-7" stroke="#000" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       </div>
                     ) : (
                       <button onClick={() => logSet(bi, si)} style={{
-                        width: 40, height: 40, borderRadius: 12,
+                        width: 36, height: 36, borderRadius: 10,
                         border: '1.5px solid rgba(34,197,94,.25)',
                         background: 'rgba(34,197,94,.08)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center', justifySelf: 'end',
