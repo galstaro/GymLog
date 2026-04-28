@@ -273,7 +273,7 @@ export default function Dashboard() {
             WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
           }}>GymLog</div>
           <div style={{ fontSize: 13, color: 'var(--hint)', marginTop: 1, fontWeight: 500 }}>
-            Hey, <span style={{ color: 'var(--muted)' }}>{name}</span>
+            Hey, <span style={{ color: 'var(--muted)' }}>{name}</span> 👋
           </div>
         </div>
         <div style={{ position: 'relative' }}>
