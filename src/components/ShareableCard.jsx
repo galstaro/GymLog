@@ -49,12 +49,10 @@ const ShareableCard = forwardRef(function ShareableCard({ heroStat, stats, displ
 
       {/* Top bar: GymLog logo */}
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 6,
+        display: 'flex', alignItems: 'center', gap: 7,
         marginBottom: 'auto',
       }}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-          <path d="M13 2L4.5 13H12L11 22l8.5-11H13L13 2z" fill="#4ade80" />
-        </svg>
+        <img src="/icons/icon-192.png" alt="GymLog" style={{ width: 24, height: 24, borderRadius: 6 }} />
         <span style={{ fontSize: 14, fontWeight: 800, color: '#4ade80', letterSpacing: -0.3 }}>
           GymLog
         </span>

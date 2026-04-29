@@ -299,12 +299,8 @@ export default function Dashboard() {
       {/* Topbar */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 20px 12px' }}>
         <div>
-          <div style={{
-            fontSize: 30, fontWeight: 900, letterSpacing: -1.2,
-            background: 'linear-gradient(90deg, #fff 0%, #4ade80 100%)',
-            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-          }}>GymLog</div>
-          <div style={{ fontSize: 13, color: 'var(--hint)', marginTop: 1, fontWeight: 500 }}>
+          <div style={{ fontFamily: 'Pacifico, cursive', fontSize: 28, color: '#4ade80', lineHeight: 1.1 }}>GymLog</div>
+          <div style={{ fontSize: 13, color: 'var(--hint)', marginTop: 8, fontWeight: 500 }}>
             Hey, <span style={{ color: 'var(--muted)' }}>{name}</span> 👋
           </div>
         </div>

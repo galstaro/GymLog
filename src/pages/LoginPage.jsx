@@ -67,35 +67,8 @@ export default function LoginPage() {
 
       {/* Logo */}
       <div style={{ marginBottom: 44, textAlign: 'center', position: 'relative', zIndex: 1, animation: 'fadeUp .5s ease both' }}>
-        {/* Icon */}
-        <div style={{
-          width: 72, height: 72, borderRadius: 22, margin: '0 auto 20px',
-          background: 'linear-gradient(135deg, rgba(34,197,94,.2) 0%, rgba(74,222,128,.1) 100%)',
-          border: '1px solid rgba(34,197,94,.3)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 0 30px rgba(34,197,94,.2)',
-        }}>
-          <svg width="34" height="34" viewBox="0 0 24 24" fill="none">
-            <path d="M13 2L4.5 13H12L11 22l8.5-11H13L13 2z"
-              fill="url(#lg)" stroke="none" />
-            <defs>
-              <linearGradient id="lg" x1="4.5" y1="2" x2="19.5" y2="22" gradientUnits="userSpaceOnUse">
-                <stop offset="0%" stopColor="#4ade80" />
-                <stop offset="100%" stopColor="#22c55e" />
-              </linearGradient>
-            </defs>
-          </svg>
-        </div>
-
-        <div style={{
-          fontSize: 38, fontWeight: 900, letterSpacing: -1.5,
-          background: 'linear-gradient(90deg, #fff 20%, #4ade80 100%)',
-          WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-          lineHeight: 1,
-        }}>
-          GymLog
-        </div>
-        <div style={{ fontSize: 14, color: 'var(--hint)', marginTop: 8, fontWeight: 500, letterSpacing: '0.01em' }}>
+        <div style={{ fontFamily: 'Pacifico, cursive', fontSize: 46, color: '#4ade80', lineHeight: 1.1, marginBottom: 10 }}>GymLog</div>
+        <div style={{ fontSize: 14, color: 'var(--hint)', fontWeight: 500, letterSpacing: '0.01em' }}>
           Track every rep. Beat every session.
         </div>
       </div>
