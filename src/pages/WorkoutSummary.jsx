@@ -1,4 +1,10 @@
+import { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
+import { useAuth } from '../hooks/useAuth.jsx'
+import { getMondayStr, getLastMondayStr } from '../lib/streaks.js'
+import { checkNewMilestones } from '../lib/milestones.js'
+import MilestoneCelebration from '../components/MilestoneCelebration.jsx'
 
 function fmt(s) {
   if (!s) return '0:00'
@@ -13,6 +19,9 @@ const MSGS = [
 export default function WorkoutSummary() {
   const { state } = useLocation()
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const [newMilestones, setNewMilestones] = useState([])
+  const [celebrationIdx, setCelebrationIdx] = useState(0)
 
   if (!state) { navigate('/'); return null }
 
@@ -21,6 +30,89 @@ export default function WorkoutSummary() {
   const totalSets = done.reduce((s, e) => s + e.doneSets, 0)
   const totalVolume = Math.round(done.reduce((s, e) => s + e.volume, 0))
   const msg = MSGS[Math.floor(Math.random() * MSGS.length)]
+
+  useEffect(() => {
+    if (user) processWorkoutCompletion()
+  }, [user])
+
+  async function processWorkoutCompletion() {
+    // Load settings (upsert ensures row exists)
+    await supabase.from('user_settings').upsert({ user_id: user.id }, { onConflict: 'user_id', ignoreDuplicates: true })
+    const { data: settings } = await supabase.from('user_settings')
+      .select('*').eq('user_id', user.id).single()
+    if (!settings) return
+
+    const goal = settings.weekly_workout_goal || 3
+    const thisWeekMon = getMondayStr()
+    const lastWeekMon = getLastMondayStr()
+
+    // Count workouts this week (current workout already saved)
+    const { count: weekCount } = await supabase.from('workouts')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .gte('date', thisWeekMon)
+
+    // Compute new totals
+    const newTotalWorkouts = (settings.total_workouts || 0) + 1
+    const newTotalVolume = (settings.total_volume_kg || 0) + totalVolume
+
+    // Compute streak increment
+    let currentStreak = settings.current_streak || 0
+    let longestStreak = settings.longest_streak || 0
+    let lastStreakWeek = settings.last_streak_week || null
+
+    const goalNowMet = (weekCount || 1) >= goal
+    const alreadyCounted = lastStreakWeek === thisWeekMon
+
+    if (goalNowMet && !alreadyCounted) {
+      if (!lastStreakWeek || lastStreakWeek === lastWeekMon) {
+        currentStreak += 1   // continuous
+      } else {
+        currentStreak = 1    // gap → fresh start
+      }
+      lastStreakWeek = thisWeekMon
+      longestStreak = Math.max(longestStreak, currentStreak)
+    }
+
+    // Save
+    await supabase.from('user_settings').update({
+      current_streak: currentStreak,
+      longest_streak: longestStreak,
+      last_streak_week: lastStreakWeek,
+      total_workouts: newTotalWorkouts,
+      total_volume_kg: newTotalVolume,
+    }).eq('user_id', user.id)
+
+    // Check milestones
+    const { data: existingMilestones } = await supabase.from('user_milestones')
+      .select('milestone_id').eq('user_id', user.id)
+    const unlockedIds = new Set((existingMilestones || []).map(m => m.milestone_id))
+
+    const earned = checkNewMilestones({
+      totalWorkouts: newTotalWorkouts,
+      currentStreak,
+      totalVolume: newTotalVolume,
+    }, unlockedIds)
+
+    if (earned.length > 0) {
+      await supabase.from('user_milestones').insert(
+        earned.map(m => ({ user_id: user.id, milestone_id: m.id }))
+      )
+      // Delay so the summary screen is visible first
+      setTimeout(() => {
+        setNewMilestones(earned)
+        setCelebrationIdx(0)
+      }, 1200)
+    }
+  }
+
+  function dismissCelebration() {
+    if (celebrationIdx < newMilestones.length - 1) {
+      setCelebrationIdx(i => i + 1)
+    } else {
+      setNewMilestones([])
+    }
+  }
 
   return (
     <div style={{ flex: 1, background: '#0a0a0a', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0 20px 52px', overflowY: 'auto' }}>
@@ -49,10 +141,10 @@ export default function WorkoutSummary() {
       {/* Stats grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, width: '100%', maxWidth: 360, marginBottom: 18, animation: 'fadeUp .5s ease .35s both' }}>
         {[
-          { label: 'Duration', value: fmt(duration) },
-          { label: 'Exercises', value: done.length },
-          { label: 'Sets Done', value: totalSets },
-          { label: 'Volume', value: `${totalVolume.toLocaleString()} kg` },
+          { label: 'Duration',   value: fmt(duration) },
+          { label: 'Exercises',  value: done.length },
+          { label: 'Sets Done',  value: totalSets },
+          { label: 'Volume',     value: `${totalVolume.toLocaleString()} kg` },
         ].map(s => (
           <div key={s.label} style={{ background: '#131313', borderRadius: 16, border: '1px solid #1e1e1e', padding: '18px 16px', textAlign: 'center' }}>
             <div style={{ fontSize: 28, fontWeight: 800, color: '#22c55e', letterSpacing: -1, lineHeight: 1 }}>{s.value}</div>
@@ -100,6 +192,15 @@ export default function WorkoutSummary() {
           </button>
         )}
       </div>
+
+      {/* Milestone celebration */}
+      {newMilestones.length > 0 && (
+        <MilestoneCelebration
+          milestone={newMilestones[celebrationIdx]}
+          totalCount={newMilestones.length}
+          onDismiss={dismissCelebration}
+        />
+      )}
     </div>
   )
 }

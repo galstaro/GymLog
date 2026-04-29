@@ -8,6 +8,7 @@ import WorkoutDetail from './pages/WorkoutDetail.jsx'
 import ExerciseProgress from './pages/ExerciseProgress.jsx'
 import ExerciseList from './pages/ExerciseList.jsx'
 import SettingsPage from './pages/SettingsPage.jsx'
+import MilestonesPage from './pages/MilestonesPage.jsx'
 
 function Protected({ children }) {
   const { user, loading } = useAuth()
@@ -33,6 +34,7 @@ export default function App() {
         <Route path="/exercise/:id" element={<Protected><ExerciseProgress /></Protected>} />
         <Route path="/exercises" element={<Protected><ExerciseList /></Protected>} />
         <Route path="/settings" element={<Protected><SettingsPage /></Protected>} />
+        <Route path="/milestones" element={<Protected><MilestonesPage /></Protected>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

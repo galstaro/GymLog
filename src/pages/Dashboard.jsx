@@ -3,6 +3,8 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth, signOut } from '../hooks/useAuth.jsx'
 import BottomNav from '../components/BottomNav.jsx'
+import StreakCard from '../components/StreakCard.jsx'
+import { computeStreakStatus, isStreakBroken, maybeNotifyStreak } from '../lib/streaks.js'
 
 function getLocalDateStr(d = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -171,6 +173,8 @@ export default function Dashboard() {
   const [showProfile, setShowProfile] = useState(false)
   const [showGoalPicker, setShowGoalPicker] = useState(false)
   const [isFirstTimeGoal, setIsFirstTimeGoal] = useState(false)
+  const [streakBroken, setStreakBroken] = useState(false)
+  const [resettingStreak, setResettingStreak] = useState(false)
 
   useEffect(() => { if (user) load() }, [user, location.key])
 
@@ -187,11 +191,12 @@ export default function Dashboard() {
     ])
 
     const settingsRes = await supabase.from('user_settings')
-      .select('weekly_workout_goal').eq('user_id', user.id).maybeSingle()
+      .select('*').eq('user_id', user.id).maybeSingle()
 
     const workouts = wRes.data || []
     const sets = sRes.data || []
-    const goal = settingsRes.data?.weekly_workout_goal ?? null
+    const settings = settingsRes.data || {}
+    const goal = settings.weekly_workout_goal ?? null
 
     const workoutDates = new Set(workouts.map(w => w.date))
     const todayStr = getLocalDateStr()
@@ -244,7 +249,16 @@ export default function Dashboard() {
       return { ...w, badge }
     })
 
-    setData({ goal: goal ?? 3, workoutsThisWeek, weekDays, monthVolume, recentWorkouts: enriched })
+    const streakStatus = computeStreakStatus(settings, workoutsThisWeek)
+    const longestStreak = settings.longest_streak || 0
+
+    setData({ goal: goal ?? 3, workoutsThisWeek, weekDays, monthVolume, recentWorkouts: enriched, streakStatus, longestStreak, settings })
+
+    // Streak break detection
+    if (isStreakBroken(settings)) setStreakBroken(true)
+
+    // Saturday 18:00 notification
+    maybeNotifyStreak(streakStatus.remaining)
 
     if (goal === null) {
       setIsFirstTimeGoal(true)
@@ -256,6 +270,19 @@ export default function Dashboard() {
     setShowGoalPicker(false)
     setIsFirstTimeGoal(false)
     setData(d => d ? { ...d, goal: newGoal } : d)
+  }
+
+  async function handleResetStreak() {
+    setResettingStreak(true)
+    await supabase.from('user_settings').update({ current_streak: 0, last_streak_week: null }).eq('user_id', user.id)
+    setStreakBroken(false)
+    setResettingStreak(false)
+    setData(d => d ? { ...d, streakStatus: { ...d.streakStatus, state: 'normal', currentStreak: 0 } } : d)
+  }
+
+  async function requestNotifPermission() {
+    if (!('Notification' in window)) return
+    await Notification.requestPermission()
   }
 
   if (!data) return (
@@ -312,6 +339,15 @@ export default function Dashboard() {
         weekDays={data.weekDays}
         onEdit={() => { setIsFirstTimeGoal(false); setShowGoalPicker(true) }}
       />
+
+      {/* Streak card */}
+      {data.streakStatus && (
+        <StreakCard
+          streakStatus={data.streakStatus}
+          longestStreak={data.longestStreak}
+          onRequestNotif={requestNotifPermission}
+        />
+      )}
 
       {/* Start Workout */}
       <div style={{ margin: '0 16px 18px' }}>
@@ -401,6 +437,38 @@ export default function Dashboard() {
       )}
 
       <BottomNav />
+
+      {/* Streak break modal */}
+      {streakBroken && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 95, background: 'rgba(0,0,0,0.88)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 28px' }}>
+          <div style={{ fontSize: 72, marginBottom: 20 }}>💔</div>
+          <div style={{ fontSize: 26, fontWeight: 900, color: '#fff', letterSpacing: -0.8, textAlign: 'center', marginBottom: 10 }}>
+            Streak broken
+          </div>
+          <div style={{ fontSize: 14, color: 'var(--hint)', textAlign: 'center', marginBottom: 36, lineHeight: 1.6 }}>
+            You missed your goal last week.<br />No worries — every champion has setbacks.
+          </div>
+          <button
+            onClick={() => { handleResetStreak(); navigate('/workout/active') }}
+            disabled={resettingStreak}
+            style={{
+              width: '100%', maxWidth: 320, padding: '16px 0', borderRadius: 16,
+              fontSize: 16, fontWeight: 900, color: '#000',
+              background: 'linear-gradient(135deg, #22c55e, #4ade80)',
+              boxShadow: '0 0 28px rgba(74,222,128,.4)', marginBottom: 12,
+            }}
+          >
+            Start a new streak
+          </button>
+          <button
+            onClick={handleResetStreak}
+            disabled={resettingStreak}
+            style={{ fontSize: 14, color: 'var(--hint)', background: 'none', padding: '10px 0' }}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* Goal picker sheet */}
       {showGoalPicker && (
