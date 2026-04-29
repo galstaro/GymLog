@@ -47,8 +47,23 @@ export default function WorkoutDetail() {
 
   async function deleteWorkout() {
     setDeleting(true)
+
+    // Delete sets and workout
     await supabase.from('sets').delete().eq('workout_id', id)
     await supabase.from('workouts').delete().eq('id', id)
+
+    // Recompute totals from actual DB so stats stay accurate
+    const [{ count }, { data: allSets }] = await Promise.all([
+      supabase.from('workouts').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
+      supabase.from('sets').select('weight_kg, reps').eq('user_id', user.id),
+    ])
+    const totalVolume = (allSets || []).reduce((sum, s) => sum + s.weight_kg * s.reps, 0)
+
+    await supabase.from('user_settings').update({
+      total_workouts: count || 0,
+      total_volume_kg: totalVolume,
+    }).eq('user_id', user.id)
+
     navigate('/')
   }
 
