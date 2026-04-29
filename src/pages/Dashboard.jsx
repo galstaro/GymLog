@@ -221,8 +221,13 @@ export default function Dashboard() {
       const volume = wSets?.reduce((sum, s) => sum + s.weight_kg * s.reps, 0) || 0
       let title = w.notes
       if (!title && exerciseIds.length > 0) {
-        const { data: exData } = await supabase.from('exercises').select('name').in('id', exerciseIds.slice(0, 2))
-        title = exData?.map(e => e.name).join(' + ') || `${exerciseCount} exercises`
+        const { data: exData } = await supabase.from('exercises').select('name, muscle_group').in('id', exerciseIds)
+        const muscleGroups = new Set(exData?.map(e => e.muscle_group) || [])
+        if (muscleGroups.size > 3) {
+          title = 'Full Body'
+        } else {
+          title = exData?.slice(0, 2).map(e => e.name).join(' + ') || `${exerciseCount} exercises`
+        }
       } else if (!title) {
         title = 'Workout'
       }

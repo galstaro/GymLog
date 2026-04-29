@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth.jsx'
 import ExercisePicker from '../components/ExercisePicker.jsx'
 import BottomNav from '../components/BottomNav.jsx'
+import SmartSwap from '../components/SmartSwap.jsx'
 
 const REST_TOTAL = 90
 let lid = 0
@@ -79,6 +80,7 @@ export default function WorkoutLogger() {
   const [pickerOpen, setPickerOpen] = useState(false)
   const [finishing, setFinishing] = useState(false)
   const [discardConfirm, setDiscardConfirm] = useState(false)
+  const [swapBlock, setSwapBlock] = useState(null) // null | block index
   const workoutIdRef = useRef(null)
   const creatingRef = useRef(null)
   const startRef = useRef(Date.now())
@@ -206,6 +208,24 @@ export default function WorkoutLogger() {
     setBlocks(prev => prev.filter((_, i) => i !== bi))
   }
 
+  function swapExercise(bi, newName, suggestedWeight) {
+    setSwapBlock(null)
+    setBlocks(prev => prev.map((b, i) => {
+      if (i !== bi) return b
+      const newSets = b.sets.map(s =>
+        s.done ? s : { ...s, weight: suggestedWeight ?? s.weight }
+      )
+      return {
+        ...b,
+        exercise: { ...b.exercise, name: newName },
+        sets: newSets,
+        lastSets: [],
+        prevVolume: 0,
+        stuck: null,
+      }
+    }))
+  }
+
   async function finish() {
     if (blocks.length === 0) { navigate('/'); return }
     setFinishing(true)
@@ -301,7 +321,20 @@ export default function WorkoutLogger() {
                 {/* Block header */}
                 <div style={{ padding: '14px 16px 10px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 19, fontWeight: 800, color: '#fff', letterSpacing: -0.3 }}>{block.exercise.name}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <div style={{ fontSize: 19, fontWeight: 800, color: '#fff', letterSpacing: -0.3 }}>{block.exercise.name}</div>
+                      <button
+                        onClick={() => setSwapBlock(bi)}
+                        style={{
+                          fontSize: 11, fontWeight: 700, color: '#4ade80',
+                          background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.25)',
+                          borderRadius: 8, padding: '3px 8px', letterSpacing: '0.03em',
+                          lineHeight: 1.4,
+                        }}
+                      >
+                        ⇄ Swap
+                      </button>
+                    </div>
                     {lastTimeStr && (
                       <div style={{ fontSize: 11, color: 'var(--hint)', marginTop: 3, fontWeight: 500 }}>Last: {lastTimeStr}</div>
                     )}
@@ -416,6 +449,14 @@ export default function WorkoutLogger() {
 
       {pickerOpen && (
         <ExercisePicker user={user} existingIds={existingIds} onSelect={addExercise} onClose={() => setPickerOpen(false)} />
+      )}
+
+      {swapBlock !== null && (
+        <SmartSwap
+          block={blocks[swapBlock]}
+          onSwap={(name, weight) => swapExercise(swapBlock, name, weight)}
+          onClose={() => setSwapBlock(null)}
+        />
       )}
 
       <BottomNav />

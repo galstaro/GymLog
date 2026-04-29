@@ -36,16 +36,19 @@ async function ensureExercises(userId) {
     .eq('user_id', userId)
     .order('id', { ascending: true })
 
-  if (!data?.length) {
-    const rows = DEFAULT_EXERCISES.map(e => ({ ...e, user_id: userId }))
-    await supabase.from('exercises').insert(rows)
-    return
+  const existing = data || []
+
+  // Insert any default exercises that don't exist yet (handles new additions)
+  const existingNames = new Set(existing.map(e => e.name))
+  const missing = DEFAULT_EXERCISES.filter(e => !existingNames.has(e.name))
+  if (missing.length > 0) {
+    await supabase.from('exercises').insert(missing.map(e => ({ ...e, user_id: userId })))
   }
 
   // Dedup: keep lowest id per name
   const seen = new Map()
   const toDelete = []
-  for (const ex of data) {
+  for (const ex of existing) {
     if (seen.has(ex.name)) toDelete.push(ex.id)
     else seen.set(ex.name, ex.id)
   }

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth.jsx'
 import BottomNav from '../components/BottomNav.jsx'
+import ExercisePicker from '../components/ExercisePicker.jsx'
 
 function fmtDuration(secs) {
   if (!secs) return null
@@ -19,6 +20,9 @@ export default function WorkoutDetail() {
   const [loading, setLoading] = useState(true)
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [editMode, setEditMode] = useState(false)
+  const [editingBlock, setEditingBlock] = useState(null) // index | null
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => { if (user) load() }, [user, id])
 
@@ -48,6 +52,25 @@ export default function WorkoutDetail() {
     navigate('/')
   }
 
+  async function changeExercise(bi, newExercise) {
+    setEditingBlock(null)
+    const oldExerciseId = blocks[bi].sets[0].exercise_id
+    if (oldExerciseId === newExercise.id) return
+    setSaving(true)
+    const { error } = await supabase.from('sets')
+      .update({ exercise_id: newExercise.id })
+      .eq('workout_id', id)
+      .eq('exercise_id', oldExerciseId)
+    if (!error) {
+      setBlocks(prev => prev.map((b, i) => i !== bi ? b : {
+        ...b,
+        exercise: { name: newExercise.name, muscle_group: newExercise.muscle_group },
+        sets: b.sets.map(s => ({ ...s, exercise_id: newExercise.id })),
+      }))
+    }
+    setSaving(false)
+  }
+
   if (loading) return (
     <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
       <div style={{ width: 24, height: 24, border: '2px solid #1e1e1e', borderTopColor: '#22c55e', borderRadius: '50%', animation: 'spin .7s linear infinite' }} />
@@ -59,6 +82,8 @@ export default function WorkoutDetail() {
     : ''
 
   const totalVolume = blocks.flatMap(b => b.sets).reduce((sum, s) => sum + s.weight_kg * s.reps, 0)
+  const muscleGroupCount = new Set(blocks.map(b => b.exercise?.muscle_group).filter(Boolean)).size
+  const isFullBody = muscleGroupCount > 3
 
   return (
     <div style={{ flex: 1, paddingBottom: 'var(--page-pb)' }}>
@@ -71,13 +96,41 @@ export default function WorkoutDetail() {
             </svg>
           </button>
           <div>
-            <div style={{ fontSize: 17, fontWeight: 500, color: '#fff' }}>Workout</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ fontSize: 17, fontWeight: 500, color: '#fff' }}>Workout</div>
+              {isFullBody && (
+                <span style={{
+                  fontSize: 10, fontWeight: 700, color: '#4ade80',
+                  background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.25)',
+                  borderRadius: 6, padding: '2px 7px', letterSpacing: '0.05em', textTransform: 'uppercase',
+                }}>Full Body</span>
+              )}
+            </div>
             <div style={{ fontSize: 12, color: '#555', marginTop: 1 }}>{dateStr}</div>
           </div>
         </div>
-        <button onClick={() => setDeleteConfirm(true)} style={{ padding: '8px 14px', borderRadius: 10, fontSize: 13, fontWeight: 600, color: '#ff4444', border: '1px solid rgba(255,68,68,.2)', background: 'rgba(255,68,68,.08)', minHeight: 36 }}>
-          Delete
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {editMode ? (
+            <button
+              onClick={() => { setEditMode(false); setEditingBlock(null) }}
+              style={{ padding: '8px 16px', borderRadius: 10, fontSize: 13, fontWeight: 700, color: '#000', background: 'linear-gradient(135deg,#22c55e,#4ade80)', minHeight: 36, boxShadow: '0 0 12px rgba(34,197,94,.35)' }}
+            >
+              {saving ? 'Saving…' : 'Done'}
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={() => setEditMode(true)}
+                style={{ padding: '8px 14px', borderRadius: 10, fontSize: 13, fontWeight: 600, color: '#4ade80', border: '1px solid rgba(74,222,128,.2)', background: 'rgba(74,222,128,.08)', minHeight: 36 }}
+              >
+                Edit
+              </button>
+              <button onClick={() => setDeleteConfirm(true)} style={{ padding: '8px 14px', borderRadius: 10, fontSize: 13, fontWeight: 600, color: '#ff4444', border: '1px solid rgba(255,68,68,.2)', background: 'rgba(255,68,68,.08)', minHeight: 36 }}>
+                Delete
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Summary stats */}
@@ -98,13 +151,27 @@ export default function WorkoutDetail() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, margin: '0 16px' }}>
         {blocks.map((block, bi) => (
           <div key={bi} style={{ background: '#111', borderRadius: 14, border: '1px solid #1e1e1e', overflow: 'hidden' }}>
-            <div style={{ padding: '11px 14px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div>
-                <button onClick={() => navigate(`/exercise/${block.sets[0].exercise_id}`)} style={{ fontSize: 14, fontWeight: 500, color: '#fff', textAlign: 'left' }}>
-                  {block.exercise?.name}
-                </button>
+            <div style={{ padding: '11px 14px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
+                {editMode ? (
+                  <button
+                    onClick={() => setEditingBlock(bi)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 7, flex: 1, minWidth: 0, textAlign: 'left' }}
+                  >
+                    <span style={{ fontSize: 14, fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {block.exercise?.name}
+                    </span>
+                    <svg width="13" height="13" viewBox="0 0 13 13" fill="none" style={{ flexShrink: 0 }}>
+                      <path d="M9 2l2 2-7 7H2V9l7-7z" stroke="#4ade80" strokeWidth="1.4" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+                ) : (
+                  <button onClick={() => navigate(`/exercise/${block.sets[0].exercise_id}`)} style={{ fontSize: 14, fontWeight: 500, color: '#fff', textAlign: 'left' }}>
+                    {block.exercise?.name}
+                  </button>
+                )}
               </div>
-              <span style={{ fontSize: 10, color: '#444', textTransform: 'uppercase', letterSpacing: '.06em', background: '#1a1a1a', padding: '2px 7px', borderRadius: 6 }}>
+              <span style={{ fontSize: 10, color: '#444', textTransform: 'uppercase', letterSpacing: '.06em', background: '#1a1a1a', padding: '2px 7px', borderRadius: 6, flexShrink: 0 }}>
                 {block.exercise?.muscle_group}
               </span>
             </div>
@@ -147,6 +214,15 @@ export default function WorkoutDetail() {
             </div>
           </div>
         </div>
+      )}
+
+      {editingBlock !== null && (
+        <ExercisePicker
+          user={user}
+          existingIds={[]}
+          onSelect={ex => changeExercise(editingBlock, ex)}
+          onClose={() => setEditingBlock(null)}
+        />
       )}
 
       <BottomNav />
