@@ -5,10 +5,11 @@ import { useAuth } from '../hooks/useAuth.jsx'
 import ExercisePicker from '../components/ExercisePicker.jsx'
 import BottomNav from '../components/BottomNav.jsx'
 import SmartSwap from '../components/SmartSwap.jsx'
+import WorkoutShareModal from '../components/WorkoutShareModal.jsx'
 
 const REST_TOTAL = 90
 let lid = 0
-const mkSet = (w = 0, r = 0) => ({ lid: ++lid, weight: w, reps: r, done: false })
+const mkSet = (w = 0, r = 0) => ({ lid: ++lid, weight: w, reps: r, done: false, pr: false })
 
 function fmt(s) {
   return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
@@ -81,6 +82,7 @@ export default function WorkoutLogger() {
   const [finishing, setFinishing] = useState(false)
   const [discardConfirm, setDiscardConfirm] = useState(false)
   const [swapBlock, setSwapBlock] = useState(null) // null | block index
+  const [shareData, setShareData] = useState(null)
   const workoutIdRef = useRef(null)
   const creatingRef = useRef(null)
   const startRef = useRef(Date.now())
@@ -130,11 +132,14 @@ export default function WorkoutLogger() {
     setPickerOpen(false)
     setBlocks(prev => [...prev, { exercise, sets: [mkSet()], lastSets: [], prevVolume: 0, stuck: null }])
 
-    const [lastRes, stuckInfo] = await Promise.all([
+    const [lastRes, stuckInfo, prRes] = await Promise.all([
       supabase.from('sets').select('weight_kg, reps, workout_id')
         .eq('user_id', user.id).eq('exercise_id', exercise.id)
         .order('created_at', { ascending: false }).limit(30),
       checkStuck(user.id, exercise.id),
+      supabase.from('sets').select('weight_kg')
+        .eq('user_id', user.id).eq('exercise_id', exercise.id)
+        .order('weight_kg', { ascending: false }).limit(1),
     ])
 
     const allSets = lastRes.data || []
@@ -149,8 +154,10 @@ export default function WorkoutLogger() {
       prevVolume = lastSets.reduce((sum, s) => sum + s.weight_kg * s.reps, 0)
     }
 
+    const prMax = prRes.data?.[0]?.weight_kg || 0
+
     setBlocks(prev => prev.map(b => b.exercise.id === exercise.id
-      ? { ...b, lastSets, prevVolume, stuck: stuckInfo, sets: [mkSet(prefillW, prefillR)] }
+      ? { ...b, lastSets, prevVolume, stuck: stuckInfo, prMax, sets: [mkSet(prefillW, prefillR)] }
       : b
     ))
   }
@@ -171,19 +178,24 @@ export default function WorkoutLogger() {
   }
 
   async function logSet(bi, si) {
-    const set = blocks[bi].sets[si]
+    const block = blocks[bi]
+    const set = block.sets[si]
     if (!set.reps || set.done) return
     const workoutId = await getOrCreateWorkout()
+    const weight = parseFloat(set.weight) || 0
+    const isPR = weight > 0 && weight > (block.prMax || 0)
     await supabase.from('sets').insert({
       user_id: user.id, workout_id: workoutId,
-      exercise_id: blocks[bi].exercise.id,
-      set_number: si + 1, weight_kg: set.weight || 0, reps: set.reps,
+      exercise_id: block.exercise.id,
+      set_number: si + 1, weight_kg: weight, reps: set.reps,
     })
     setBlocks(prev => prev.map((b, i) => i !== bi ? b : {
-      ...b, sets: b.sets.map((s, j) => j !== si ? s : { ...s, done: true })
+      ...b,
+      prMax: isPR ? weight : b.prMax,
+      sets: b.sets.map((s, j) => j !== si ? s : { ...s, done: true, pr: isPR }),
     }))
     setRest({ remaining: REST_TOTAL, total: REST_TOTAL })
-    if (navigator.vibrate) navigator.vibrate(50)
+    if (navigator.vibrate) navigator.vibrate(isPR ? [50, 30, 80] : 50)
   }
 
   function addSet(bi) {
@@ -234,20 +246,60 @@ export default function WorkoutLogger() {
       const wid = await getOrCreateWorkout()
       const { error } = await supabase.from('workouts').update({ duration_seconds: duration }).eq('id', wid)
       if (error) console.error('duration update failed:', error)
+
       const exerciseSummary = blocks.map(b => {
         const doneSets = b.sets.filter(s => s.done)
         return {
           name: b.exercise.name,
+          muscleGroup: b.exercise.muscle_group,
           doneSets: doneSets.length,
           maxWeight: doneSets.length > 0 ? Math.max(...doneSets.map(s => parseFloat(s.weight) || 0)) : 0,
           volume: doneSets.reduce((sum, s) => sum + (parseFloat(s.weight) || 0) * (parseInt(s.reps) || 0), 0),
         }
       })
-      navigate('/workout/complete', { state: { workoutId: wid, duration, exerciseSummary } })
+
+      // Detect session PRs (blocks where any done set exceeded prMax at add-time)
+      const newPRs = blocks.flatMap(b => {
+        const doneSets = b.sets.filter(s => s.pr)
+        if (!doneSets.length) return []
+        const maxPR = Math.max(...doneSets.map(s => parseFloat(s.weight) || 0))
+        return [{ exerciseId: b.exercise.id, exerciseName: b.exercise.name, weight: maxPR }]
+      })
+
+      if (newPRs.length > 0) {
+        await supabase.from('personal_records').insert(
+          newPRs.map(pr => ({ user_id: user.id, exercise_id: pr.exerciseId, weight_kg: pr.weight }))
+        )
+      }
+
+      // Fetch streak & workout number for share card
+      const { data: settings } = await supabase.from('user_settings')
+        .select('current_streak, total_workouts').eq('user_id', user.id).maybeSingle()
+
+      const totalVolume = Math.round(exerciseSummary.reduce((s, e) => s + e.volume, 0))
+      const totalSets = exerciseSummary.reduce((s, e) => s + e.doneSets, 0)
+      const musclesWorked = [...new Set(exerciseSummary.map(e => e.muscleGroup).filter(Boolean))]
+
+      setShareData({
+        totalVolume,
+        duration,
+        totalSets,
+        musclesWorked,
+        currentStreak: settings?.current_streak || 0,
+        workoutNumber: (settings?.total_workouts || 0) + 1,
+        prExercise: newPRs[0] ? { name: newPRs[0].exerciseName, weight: newPRs[0].weight } : null,
+        workoutId: wid,
+        exerciseSummary,
+      })
     } catch (e) {
       console.error('finish failed:', e)
       setFinishing(false)
     }
+  }
+
+  function afterShare() {
+    const { workoutId, duration, exerciseSummary } = shareData
+    navigate('/workout/complete', { state: { workoutId, duration, exerciseSummary } })
   }
 
   async function discard() {
@@ -376,10 +428,15 @@ export default function WorkoutLogger() {
                     )}
 
                     {set.done ? (
-                      <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg,#22c55e,#4ade80)', display: 'flex', alignItems: 'center', justifyContent: 'center', justifySelf: 'end', boxShadow: '0 0 12px rgba(34,197,94,.4)' }}>
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                          <path d="M2.5 8l4 4 7-7" stroke="#000" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, justifySelf: 'end' }}>
+                        {set.pr && (
+                          <span style={{ fontSize: 14, lineHeight: 1 }} title="Personal Record">🏆</span>
+                        )}
+                        <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg,#22c55e,#4ade80)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 0 ${set.pr ? '18px' : '12px'} rgba(34,197,94,${set.pr ? '.7' : '.4'})` }}>
+                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                            <path d="M2.5 8l4 4 7-7" stroke="#000" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </div>
                       </div>
                     ) : (
                       <button onClick={() => logSet(bi, si)} style={{
@@ -449,6 +506,10 @@ export default function WorkoutLogger() {
 
       {pickerOpen && (
         <ExercisePicker user={user} existingIds={existingIds} onSelect={addExercise} onClose={() => setPickerOpen(false)} />
+      )}
+
+      {shareData && (
+        <WorkoutShareModal shareData={shareData} onContinue={afterShare} />
       )}
 
       {swapBlock !== null && (

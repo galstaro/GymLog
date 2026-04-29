@@ -79,6 +79,19 @@ drop policy if exists "Users manage own milestones" on public.user_milestones;
 create policy "Users manage own milestones" on public.user_milestones for all
   using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
+-- Personal records (all-time PR per exercise — full history, no unique constraint)
+create table if not exists public.personal_records (
+  id           uuid primary key default uuid_generate_v4(),
+  user_id      uuid not null references auth.users(id) on delete cascade,
+  exercise_id  uuid not null references public.exercises(id) on delete cascade,
+  weight_kg    numeric(6,2) not null,
+  achieved_at  timestamptz not null default now()
+);
+alter table public.personal_records enable row level security;
+drop policy if exists "Users manage own records" on public.personal_records;
+create policy "Users manage own records" on public.personal_records for all
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
 -- Indexes
 create index if not exists idx_sets_user_exercise on public.sets(user_id, exercise_id);
 create index if not exists idx_sets_workout on public.sets(workout_id);
