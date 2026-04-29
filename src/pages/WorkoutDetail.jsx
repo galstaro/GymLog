@@ -4,6 +4,54 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth.jsx'
 import BottomNav from '../components/BottomNav.jsx'
 import ExercisePicker from '../components/ExercisePicker.jsx'
+import { getMondayStr } from '../lib/streaks.js'
+
+async function recomputeStreak(userId, weeklyGoal) {
+  const { data: workouts } = await supabase
+    .from('workouts').select('date').eq('user_id', userId)
+
+  if (!workouts?.length) return { current_streak: 0, last_streak_week: null }
+
+  // Count workouts per week (keyed by Monday date string)
+  const weekCounts = {}
+  for (const w of workouts) {
+    const mon = getMondayStr(new Date(w.date + 'T00:00:00'))
+    weekCounts[mon] = (weekCounts[mon] || 0) + 1
+  }
+
+  const thisWeekMon = getMondayStr()
+  let streak = 0
+  let lastStreakWeek = null
+
+  // If current week already meets goal, start streak there
+  let weekMon
+  if ((weekCounts[thisWeekMon] || 0) >= weeklyGoal) {
+    streak = 1
+    lastStreakWeek = thisWeekMon
+    const d = new Date(thisWeekMon + 'T00:00:00')
+    d.setDate(d.getDate() - 7)
+    weekMon = getMondayStr(d)
+  } else {
+    const d = new Date()
+    d.setDate(d.getDate() - 7)
+    weekMon = getMondayStr(d)
+  }
+
+  // Walk backwards week by week until a week without enough workouts
+  for (let i = 0; i < 104; i++) {
+    if ((weekCounts[weekMon] || 0) >= weeklyGoal) {
+      streak++
+      if (!lastStreakWeek) lastStreakWeek = weekMon
+      const d = new Date(weekMon + 'T00:00:00')
+      d.setDate(d.getDate() - 7)
+      weekMon = getMondayStr(d)
+    } else {
+      break
+    }
+  }
+
+  return { current_streak: streak, last_streak_week: lastStreakWeek }
+}
 
 function fmtDuration(secs) {
   if (!secs) return null
@@ -52,16 +100,24 @@ export default function WorkoutDetail() {
     await supabase.from('sets').delete().eq('workout_id', id)
     await supabase.from('workouts').delete().eq('id', id)
 
-    // Recompute totals from actual DB so stats stay accurate
-    const [{ count }, { data: allSets }] = await Promise.all([
+    // Recompute all stats from actual DB so nothing goes stale
+    const { data: settings } = await supabase.from('user_settings')
+      .select('weekly_workout_goal, longest_streak').eq('user_id', user.id).single()
+
+    const [{ count }, { data: allSets }, streakData] = await Promise.all([
       supabase.from('workouts').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
       supabase.from('sets').select('weight_kg, reps').eq('user_id', user.id),
+      recomputeStreak(user.id, settings?.weekly_workout_goal || 3),
     ])
     const totalVolume = (allSets || []).reduce((sum, s) => sum + s.weight_kg * s.reps, 0)
 
     await supabase.from('user_settings').update({
       total_workouts: count || 0,
       total_volume_kg: totalVolume,
+      current_streak: streakData.current_streak,
+      last_streak_week: streakData.last_streak_week,
+      // longest_streak only decreases if current recomputed streak is lower — keep all-time best
+      longest_streak: Math.max(settings?.longest_streak || 0, streakData.current_streak),
     }).eq('user_id', user.id)
 
     navigate('/')
