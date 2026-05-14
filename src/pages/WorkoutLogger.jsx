@@ -85,12 +85,48 @@ export default function WorkoutLogger() {
   const [shareData, setShareData] = useState(null)
   const workoutIdRef = useRef(null)
   const creatingRef = useRef(null)
-  const startRef = useRef(Date.now())
+  const startRef = useRef(null)
 
+  // Restore saved workout on mount, or start fresh
   useEffect(() => {
-    const id = setInterval(() => setElapsed(Math.floor((Date.now() - startRef.current) / 1000)), 1000)
+    try {
+      const saved = localStorage.getItem('gymlog_active_workout')
+      if (saved) {
+        const { blocks: b, workoutId, startTime } = JSON.parse(saved)
+        if (b?.length > 0) {
+          const maxLid = b.flatMap(bl => bl.sets).reduce((m, s) => Math.max(m, s.lid || 0), 0)
+          lid = maxLid
+          startRef.current = startTime
+          workoutIdRef.current = workoutId
+          setBlocks(b)
+          return
+        }
+      }
+    } catch { /* ignore corrupt data */ }
+    startRef.current = Date.now()
+  }, [])
+
+  // Timer
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (startRef.current !== null) setElapsed(Math.floor((Date.now() - startRef.current) / 1000))
+    }, 1000)
     return () => clearInterval(id)
   }, [])
+
+  // Persist workout state to localStorage on every blocks change
+  useEffect(() => {
+    if (!startRef.current) return
+    if (blocks.length === 0) {
+      localStorage.removeItem('gymlog_active_workout')
+      return
+    }
+    localStorage.setItem('gymlog_active_workout', JSON.stringify({
+      blocks,
+      workoutId: workoutIdRef.current,
+      startTime: startRef.current,
+    }))
+  }, [blocks])
 
   useEffect(() => {
     if (!rest) return
@@ -280,6 +316,7 @@ export default function WorkoutLogger() {
       const totalSets = exerciseSummary.reduce((s, e) => s + e.doneSets, 0)
       const musclesWorked = [...new Set(exerciseSummary.map(e => e.muscleGroup).filter(Boolean))]
 
+      localStorage.removeItem('gymlog_active_workout')
       setShareData({
         totalVolume,
         duration,
@@ -303,6 +340,7 @@ export default function WorkoutLogger() {
   }
 
   async function discard() {
+    localStorage.removeItem('gymlog_active_workout')
     if (workoutIdRef.current) {
       await supabase.from('sets').delete().eq('workout_id', workoutIdRef.current)
       await supabase.from('workouts').delete().eq('id', workoutIdRef.current)
